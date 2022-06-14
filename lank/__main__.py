@@ -1,4 +1,4 @@
-from .cmd import version
+from .cmd import main
 
-version()
+main()
 
