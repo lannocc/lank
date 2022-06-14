@@ -1,8 +1,10 @@
 # LANK
-_L_ISTENING _A_NCHOR _N_ODES for _K_
+
+## Listening Anchor Nodes for K
 
 In service of:
-- *L*abels
-- *A*ddresses (peer discovery)
-- *N*ames
-- *K*eys
+- **L**abels
+- **A**ddresses (peer discovery)
+- **N**ames
+- **K**eys
+
