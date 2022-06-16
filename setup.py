@@ -19,9 +19,15 @@ def run():
         ],
         install_requires=[
             'appdirs',
+            'bidict',
+            'gevent',
         ],
         entry_points = {
-            'console_scripts': ['lank=lank.cmd:main']
+            'console_scripts': [
+                'lank=lank.__main__:run',
+                'lank-node=lank.node.__main__:run',
+                'lank-peer=lank.peer.__main__:run',
+            ],
         },
     )
 

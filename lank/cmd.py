@@ -1,30 +1,22 @@
-from . import __version__
-from .config import *
-import lank.db as ldb
-
-import sys
 
 
-def main():
-    try:
-        print('LANK: ', end='')
+def main(args):
+    print('LANK: ', end='')
 
-        cmd = sys.argv[1] if len(sys.argv) > 1 else 'help'
+    cmd = args[0] if args else 'help'
+    args = args[1:]
 
-        if cmd in SET:
-            cmd = SET[cmd]
-            print(cmd[1])
-            cmd[0]()
+    if cmd in SET:
+        cmd = SET[cmd]
+        print(cmd[1])
+        cmd[0](args)
 
-        else:
-            print(f'unknown command: {cmd}')
-            print('Try `lank help` for a list of commands.')
-
-    finally:
-        ldb.close()
+    else:
+        print(f'unknown command: {cmd}')
+        print('Try `lank help` for a list of commands.')
 
 
-def help():
+def help(args):
     print('Listening Anchor Nodes for K')
     print()
     print('USAGE:')
@@ -33,20 +25,33 @@ def help():
     print('The following commands are available:')
     for name, cmd in SET.items():
         print(f'   {name} - {cmd[1]}')
-    #print()
-    #print('For example, to see version information:')
-    #print('   lank version')
 
 
-def version():
+def version(args):
+    from . import __version__
     print(f'Installed version is {__version__}')
 
 
-def dbinfo():
+def dbinfo(args):
+    from .config import DB
+    from .db import VERSION
     from os.path import getsize
+
     print(f'  db file: {DB}')
-    print(f'  version: {ldb.VERSION}')
+    print(f'  version: {VERSION}')
     print(f'     size: {getsize(DB)} (bytes)')
+
+
+def node(args):
+    from .node.cmd import main as node_main
+
+    node_main(args)
+
+
+def peer(args):
+    from .peer.cmd import main as peer_main
+
+    peer_main(args)
 
 
 SET = {
@@ -56,5 +61,9 @@ SET = {
         'version information'),
     'dbinfo': (dbinfo,
         'database information'),
+    'node': (node,
+        'node commands'),
+    'peer': (peer,
+        'peer commands'),
 }
 
