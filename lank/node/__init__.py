@@ -8,7 +8,7 @@ from socket import timeout
 
 DEFAULT_PORT = 42024
 
-HELLO = b'HOLANK'
+HELLO = b'\x04\x02\x00HOLANK\x00\x02\x04'
 HELLO_SIZE = len(HELLO)
 HELLO_TIMEOUT = 9 # seconds
 

@@ -42,6 +42,12 @@ def dbinfo(args):
     print(f'     size: {getsize(DB)} (bytes)')
 
 
+def register(args):
+    from .crypto import get_handler
+
+    get_handler().register()
+
+
 def node(args):
     from .node.cmd import main as node_main
 
@@ -61,6 +67,8 @@ SET = {
         'version information'),
     'dbinfo': (dbinfo,
         'database information'),
+    'register': (register,
+        'register a new label'),
     'node': (node,
         'node commands'),
     'peer': (peer,

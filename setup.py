@@ -20,7 +20,9 @@ def run():
         install_requires=[
             'appdirs',
             'bidict',
+            'cryptography',
             'gevent',
+            'password-strength',
         ],
         entry_points = {
             'console_scripts': [

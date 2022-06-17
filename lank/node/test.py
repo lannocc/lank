@@ -37,12 +37,12 @@ class TestClient:
         for i in range(999):
             ping = Ping()
 
-            print('>', end='')
+            print('<', end='')
             sys.stdout.flush()
             handler.send(ping)
 
             msg = handler.recv()
-            print('<', end='')
+            print('>', end='')
             sys.stdout.flush()
 
             if isinstance(msg, Pong):

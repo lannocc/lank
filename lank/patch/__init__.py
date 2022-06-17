@@ -1,7 +1,8 @@
 import sys
 
 
-def upgrade(dbfile, cur, fetchall, set_meta, meta_version, from_ver, to_ver):
+def upgrade(dbfile, close, cur, fetchall,
+            set_meta, meta_version, from_ver, to_ver):
     print()
     print()
     print('#################################')
@@ -34,6 +35,7 @@ def upgrade(dbfile, cur, fetchall, set_meta, meta_version, from_ver, to_ver):
 
         except KeyboardInterrupt:
             print('ANCELLED BY USER') # not a typo (piggy back off ^C)
+            close()
             sys.exit(1)
 
         except Exception as e:
@@ -45,7 +47,7 @@ def apply_patch(cur, fetchall, version):
     print(f'Hit <ENTER> to apply version {version}...')
     input()
 
-    exec(f'from .patch.v{version} import patch as patch_v{version}')
+    exec(f'from .v{version} import patch as patch_v{version}')
 
     cur.execute('PRAGMA foreign_keys=OFF')
     cur.execute('BEGIN')

@@ -1,6 +1,8 @@
 Copyright (C) 2022 LANNOCC (Shawn A. Wilson)
 @%@~LICENSE:MIT~@%@
 
+saw_061722_1 - Beginning crypto handler v1 (label registration).
+
 saw_061622_1 - Beginning node protocol v1 (ping-pong).
 
 saw_061422_3 - Use os.makedirs() for the user_data_dir (creates parents).
