@@ -26,8 +26,35 @@ def help(args):
         print(f'   {name} - {cmd[1]}')
 
 
+def run(args):
+    from . import Server
+    from ..crypto import get_handler
+
+    crypto = get_handler()
+
+    label = 'anonymous'
+    print(f'Loading private key for "{label}"...')
+    priv_key = crypto.get_private_key(label)
+
+    print('Starting server process...')
+    server = Server(crypto, priv_key)
+    print(f'   listening on port {server.port}')
+    server.run()
+
+
+def test(args):
+    from .test import TestClient
+    tester = TestClient()
+    print('Testing...')
+    tester.run()
+
+
 SET = {
     'help': (help,
         'help for peer commands'),
+    'run': (run,
+        'run the peer'),
+    'test': (test,
+        'test the peer'),
 }
 

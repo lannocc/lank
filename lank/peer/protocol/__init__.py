@@ -1,15 +1,22 @@
 from abc import ABC, abstractmethod
 
 
-HELLO = b'\x04\x02\x00HOLANK\x00\x02\x04'
+HELLO = b'\x04\x02\x00peerHOLANK\x00\x02\x04'
 
 cache = { }
 
 
-def get_handler(sock, addr):
+def get_handler(sock, addr, crypto=None, priv_key=None):
     version = sock.recv(1)
     if not version: return None
     version = version[0]
+
+    if version < 1:
+        raise ValueError(f'protocol version {version}')
+
+    elif version >= 2:
+        assert crypto
+        assert priv_key
 
     if version not in cache:
         try:
@@ -20,11 +27,14 @@ def get_handler(sock, addr):
             cache[version] = None
 
     handler = cache[version]
-
     if not handler:
         raise ValueError(f'protocol version {version}')
 
-    return handler(sock, addr)
+    if version >= 2:
+        return handler(sock, addr, crypto, priv_key)
+
+    else:
+        return handler(sock, addr)
 
 
 class Handler(ABC):

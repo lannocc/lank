@@ -1,5 +1,5 @@
-from . import DEFAULT_PORT, HELLO
-from .protocol.v1 import Handler, Ping, Pong
+from . import DEFAULT_PORT
+from .protocol.v1 import *
 
 from gevent import socket
 
@@ -15,26 +15,23 @@ def end():
 
 
 class TestClient:
-    def __init__(self):
-        pass
-
     def run(self):
         addr = ('localhost', DEFAULT_PORT)
 
-        begin('connecting')
+        begin(f'connecting to {addr}')
         sock = socket.create_connection(addr)
-        end()
-
-        begin('sending HELLO v1')
-        sock.sendall(HELLO + b'\x01')
         end()
 
         begin('instantiating protocol handler')
         handler = Handler(sock, addr)
         end()
 
+        begin(f'sending HELLO v{handler.VERSION}')
+        handler.hello()
+        end()
+
         begin('ping-pong')
-        for i in range(999):
+        for i in range(9):
             ping = Ping()
 
             print('<', end='')

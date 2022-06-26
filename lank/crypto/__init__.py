@@ -34,3 +34,27 @@ class Handler(ABC):
     def register(self):
         raise NotImplemented()
 
+    @abstractmethod
+    def get_private_key(self, label, password=None):
+        raise NotImplemented()
+
+    @abstractmethod
+    def get_public_key(self, label):
+        raise NotImplemented()
+
+    @abstractmethod
+    def encrypt(self, pub_key, data):
+        raise NotImplemented()
+
+    @abstractmethod
+    def decrypt(self, priv_key, data):
+        raise NotImplemented()
+
+    @abstractmethod
+    def sign(self, priv_key, data):
+        raise NotImplemented()
+
+    @abstractmethod
+    def verify(self, pub_key, data, signature):
+        raise NotImplemented()
+

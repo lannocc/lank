@@ -1,4 +1,4 @@
-from .protocol import get_handler
+from .protocol import get_handler, HELLO
 
 from gevent.pool import Pool
 from gevent.server import StreamServer
@@ -8,9 +8,10 @@ from socket import timeout
 
 DEFAULT_PORT = 42024
 
-HELLO = b'\x04\x02\x00HOLANK\x00\x02\x04'
 HELLO_SIZE = len(HELLO)
 HELLO_TIMEOUT = 9 # seconds
+
+GENERAL_TIMEOUT = 9 * 60 # seconds
 
 
 class Server:
@@ -35,22 +36,31 @@ class Server:
 
             if read == HELLO_SIZE:
                 if self.buffer == HELLO:
+                    sock.settimeout(GENERAL_TIMEOUT)
+
                     try:
                         protocol = get_handler(sock, addr)
 
                         if protocol:
                             try:
-                                protocol.server()
+                                protocol.server(self)
                                 print(f' - finished {addr}')
 
                             except BrokenPipeError:
                                 print(f' - closed {addr} [BROKEN PIPE]')
 
+                            except ValueError as e:
+                                print(f' - terminated {addr}' \
+                                    + f' [BAD MESSAGE: {e}]')
+
                         else:
                             print(f' - closed {addr} [CLIENT ABORT]')
 
-                    except ValueError:
+                    except ValueError as e:
                         print(f' - terminated {addr} [PROTOCOL VERSION]')
+
+                    except timeout:
+                        print(f' - terminated {addr} [GENERAL TIMEOUT]')
 
                 else:
                     print(f' - terminated {addr} [BAD HELLO]')

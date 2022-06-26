@@ -1,6 +1,8 @@
 Copyright (C) 2022 LANNOCC (Shawn A. Wilson)
 @%@~LICENSE:MIT~@%@
 
+saw_062622_1 - Implementation of peer protocol v1 (basic) and v2 (encrypted).
+
 saw_061722_1 - Beginning crypto handler v1 (label registration).
 
 saw_061622_1 - Beginning node protocol v1 (ping-pong).
