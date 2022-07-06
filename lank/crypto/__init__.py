@@ -30,11 +30,11 @@ class Handler(ABC):
     def __init__(self):
         pass
 
+    '''
     @abstractmethod
     def register(self):
         raise NotImplementedError()
 
-    '''
     @abstractmethod
     def get_private_key(self, label, password=None):
         raise NotImplementedError()
