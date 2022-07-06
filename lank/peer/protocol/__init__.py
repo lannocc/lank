@@ -23,12 +23,13 @@ def get_handler(sock, addr, crypto=None, priv_key=None):
             exec(f'from .v{version} import Handler as Protocol_v{version}')
             exec(f'cache[{version}] = Protocol_v{version}')
 
-        except ModuleNotFoundError:
-            cache[version] = None
+        except ModuleNotFoundError as e:
+            cache[version] = e
 
     handler = cache[version]
-    if not handler:
-        raise ValueError(f'protocol version {version}')
+
+    if isinstance(handler, Exception):
+        raise ValueError(f'protocol handler version {version}') from handler
 
     if version >= 2:
         return handler(sock, addr, crypto, priv_key)
@@ -48,7 +49,7 @@ class Handler(ABC):
 
     @abstractmethod
     def server(self, master):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def hello(self):
         assert self.VERSION > 0 and self.VERSION < 256

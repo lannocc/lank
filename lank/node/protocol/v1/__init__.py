@@ -15,9 +15,11 @@ class Handler(Base):
         2: Pong,
     })
 
+    def client(self, master):
+        raise NotImplementedError()
+
     def server(self, master):
-        while msg := self.recv():
-            print(f'     {self.addr} -> {msg}')
+        while msg := self.s_recv():
             reply = None
 
             if isinstance(msg, Ping):
@@ -27,8 +29,7 @@ class Handler(Base):
                 raise ValueError(f'unhandled message: {msg}')
 
             if reply:
-                print(f'     {self.addr} <- {reply}')
-                self.send(reply)
+                self.s_send(reply)
 
     def send(self, msg):
         self.sock.sendall(self.get_id_bytes(msg))

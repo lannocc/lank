@@ -22,6 +22,7 @@ def run():
             'bidict',
             'cryptography',
             'gevent',
+            'ntplib',
             'password-strength',
         ],
         entry_points = {

@@ -1,13 +1,16 @@
-from .config import DB
+from ..config import DB
 
 import sqlite3
 from contextlib import AbstractContextManager
+from datetime import datetime
+import uuid
 
 
-VERSION = 2
+VERSION = 3
 
 # meta table entries
 META_VERSION = 'db_version'
+META_NODE_UUID = 'node_uuid'
 
 # name table entries
 NAME_REGISTER = 10
@@ -16,10 +19,12 @@ NAME_REGISTER = 10
 #print(f'databasing "{DB}" ...')
 
 con = sqlite3.connect(DB, isolation_level=None,
-    detect_types=sqlite3.PARSE_DECLTYPES)
+    detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 con.row_factory = sqlite3.Row
 sqlite3.register_adapter(bool, int)
 sqlite3.register_converter('BOOLEAN', lambda v: bool(int(v)))
+sqlite3.register_converter('TIMESTAMP',
+                           lambda v: datetime.fromisoformat(str(v, 'utf-8')))
 cur = con.cursor()
 #cur.execute('.dbconfig defensive on')
 cur.execute('PRAGMA journal_mode=WAL')
@@ -92,6 +97,7 @@ cur.executemany('''
     )
 ''', [
     (META_VERSION, VERSION),
+    (META_NODE_UUID, str(uuid.uuid4()))
 ])
 
 def get_meta(name):
@@ -124,6 +130,21 @@ def _upgrade_if_needed_():
                 set_meta, META_VERSION, v, VERSION)
 
 _upgrade_if_needed_() # pause here and patch the db before continuing
+
+
+###
+### NODE
+###
+
+#cur.execute('''
+#    CREATE TABLE IF NOT EXISTS node (
+#        id          INTEGER PRIMARY KEY,
+#        host        TEXT NOT NULL,
+#        port        INTEGER NOT NULL,
+#        last_uuid   TEXT,
+#        last_seen   TIMESTAMP
+#    )
+#''')
 
 
 ###
@@ -234,12 +255,15 @@ def list_names():
 cur.execute('''
     CREATE TABLE IF NOT EXISTS signed (
         id          INTEGER PRIMARY KEY,
+        uuid        TEXT NOT NULL UNIQUE,
         label       INTEGER NOT NULL,
         name        INTEGER NOT NULL,
         key         TEXT NOT NULL,
         address     TEXT NOT NULL,
         signature   BLOB NOT NULL,
         version     INTEGER NOT NULL,
+        node_uuid   TEXT NOT NULL,
+        created     TIMESTAMP NOT NULL,
 
         FOREIGN KEY (label) REFERENCES label (id),
         FOREIGN KEY (name) REFERENCES name (id)
@@ -261,36 +285,69 @@ cur.execute('''
     )
 ''')
 
-def insert_signed(label, name, key, address, signature, version):
+cur.execute('''
+    CREATE INDEX IF NOT EXISTS signed_created ON signed (
+        created
+    )
+''')
+
+def insert_signed(uuid, label, name, key, address, signature, version,
+                  node_uuid, created):
     cur.execute('''
         INSERT INTO signed (
+            uuid,
             label,
             name,
             key,
             address,
             signature,
-            version
+            version,
+            node_uuid,
+            created
         )
         VALUES (
-            ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     ''', (
+        uuid,
         label,
         name,
         key,
         address,
         signature,
-        version
+        version,
+        node_uuid,
+        created
     ))
 
     return cur.lastrowid
 
-def find_signed(label, name, limit=None):
+def list_signed():
+    cur.execute('''
+        SELECT *
+        FROM signed
+        ORDER BY created
+    ''')
+
+    return cur_fetchall()
+
+def get_signed_by_uuid(uuid):
+    cur.execute('''
+        SELECT *
+        FROM signed
+        WHERE uuid = ?
+    ''', (
+        uuid,
+    ))
+
+    return cur_fetch()
+
+def find_signed_by_label_name(label, name, limit=None):
     sql = '''
         SELECT *
         FROM signed
         WHERE label = ? AND name = ?
-        ORDER BY id DESC
+        ORDER BY created DESC
     '''
 
     if limit:
@@ -299,6 +356,24 @@ def find_signed(label, name, limit=None):
     cur.execute(sql, (label, name))
 
     return cur_fetchall()
+
+def find_signed_since(since):
+    cur.execute('''
+        SELECT *
+        FROM signed
+        WHERE created >= ?
+        ORDER BY created
+    ''', (since,))
+
+    return cur_fetchall()
+
+def get_last_signed_created():
+    cur.execute('''
+        SELECT MAX(created) AS created
+        FROM signed
+    ''')
+
+    return cur_fetchcol('created')
 
 
 

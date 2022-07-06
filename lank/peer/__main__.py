@@ -1,5 +1,4 @@
 from .cmd import main
-import lank.db as ldb
 
 import sys
 
@@ -10,9 +9,6 @@ def run():
 
     except KeyboardInterrupt:
         pass
-
-    finally:
-        ldb.close()
 
 
 if __name__ == '__main__':

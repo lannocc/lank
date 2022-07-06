@@ -15,13 +15,13 @@ def get_handler(version=None):
             exec(f'from .v{version} import Handler as Crypto_v{version}')
             exec(f'cache[{version}] = Crypto_v{version}')
 
-        except ModuleNotFoundError:
-            cache[version] = None
+        except ModuleNotFoundError as e:
+            cache[version] = e
 
     handler = cache[version]
 
-    if not handler:
-        raise ValueError(f'crypto version {version}')
+    if isinstance(handler, Exception):
+        raise ValueError(f'crypto handler version {version}') from handler
 
     return handler()
 
@@ -32,29 +32,35 @@ class Handler(ABC):
 
     @abstractmethod
     def register(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
+    '''
     @abstractmethod
     def get_private_key(self, label, password=None):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def get_public_key(self, label):
-        raise NotImplemented()
+        raise NotImplementedError()
+    '''
+
+    @abstractmethod
+    def load_private_key(self, key_pair_pem, password=None):
+        raise NotImplementedError()
 
     @abstractmethod
     def encrypt(self, pub_key, data):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def decrypt(self, priv_key, data):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def sign(self, priv_key, data):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @abstractmethod
     def verify(self, pub_key, data, signature):
-        raise NotImplemented()
+        raise NotImplementedError()
 

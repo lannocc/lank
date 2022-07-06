@@ -32,20 +32,10 @@ def version(args):
     print(f'Installed version is {__version__}')
 
 
-def dbinfo(args):
-    from .config import DB
-    from .db import VERSION
-    from os.path import getsize
-
-    print(f'  db file: {DB}')
-    print(f'  version: {VERSION}')
-    print(f'     size: {getsize(DB)} (bytes)')
-
-
 def register(args):
-    from .crypto import get_handler
+    from .registration import Interactive
 
-    get_handler().register()
+    Interactive().run()
 
 
 def node(args):
@@ -65,8 +55,6 @@ SET = {
         'help for this program'),
     'version': (version,
         'version information'),
-    'dbinfo': (dbinfo,
-        'database information'),
     'register': (register,
         'register a new label'),
     'node': (node,
