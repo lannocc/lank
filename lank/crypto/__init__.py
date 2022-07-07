@@ -27,25 +27,16 @@ def get_handler(version=None):
 
 
 class Handler(ABC):
-    def __init__(self):
-        pass
-
-    '''
     @abstractmethod
-    def register(self):
+    def make_keys(self, password=None):
         raise NotImplementedError()
-
-    @abstractmethod
-    def get_private_key(self, label, password=None):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def get_public_key(self, label):
-        raise NotImplementedError()
-    '''
 
     @abstractmethod
     def load_private_key(self, key_pair_pem, password=None):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def load_public_key(self, key_pair_pem):
         raise NotImplementedError()
 
     @abstractmethod

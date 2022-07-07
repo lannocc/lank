@@ -20,7 +20,7 @@ GENERAL_TIMEOUT = KEEPALIVE * 2 # seconds
 
 NODES = [ # FIXME -- this is temporary (put in database?)
     ('localhost', 42024),
-    ('localhost', 42124),
+    #('localhost', 42124),
     ('72.202.195.53', 42024),
     ('ruckusist.com', 42024),
 ]
@@ -104,7 +104,7 @@ class Master:
 
     def _broadcast_nodes_(self, msg, skip=None):
         for handler in self.nodes_by_uuid.values():
-            if skip == handler:
+            if handler is skip:
                 continue
 
             handler.send(msg)
@@ -174,6 +174,9 @@ class Master:
                             try:
                                 protocol.server(self)
                                 print(f'S- finished {addr}')
+
+                            except KeyError as e:
+                                print(f'S- terminated {addr} [DENIED: {e}]')
 
                             except ValueError as e:
                                 print(f'S- terminated {addr}' \

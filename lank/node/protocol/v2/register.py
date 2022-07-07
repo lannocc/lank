@@ -1,6 +1,6 @@
 from .base import Labeled, Identified
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 
 class Reservation(Labeled, Identified):
@@ -59,13 +59,15 @@ class ReservationRequired(Labeled):
     pass
 
 
-class Registration(Labeled):
+class Registration(Identified, Labeled):
     VERSION_SIZE = 1 # bytes
     TIME_NONCE_SIZE_SIZE = 1 # bytes
     KEY_PAIR_SIZE_SIZE = 2 # bytes
     SIG_SIZE = 512 # bytes
 
-    def __init__(self, label, version, time_nonce, key_pair_pem, signature):
+    def __init__(self, uuid, label, version, time_nonce, key_pair_pem,
+                 signature):
+        Identified.__init__(self, uuid)
         Labeled.__init__(self, label)
         self.version = version
         self.time_nonce = time_nonce
@@ -74,12 +76,14 @@ class Registration(Labeled):
 
     def _str_(self):
         return ', '.join([
+            Identified._str_(self),
             Labeled._str_(self),
             f'version={self.version}',
             #f'time_nonce={self.time_nonce}',
         ])
 
     def to_bytes(self, handler):
+        uuid = Identified.to_bytes(self, handler)
         label = Labeled.to_bytes(self, handler)
 
         version = self.version
@@ -103,11 +107,14 @@ class Registration(Labeled):
         sig = self.signature
         assert len(sig) == self.SIG_SIZE
 
-        return label + version + time_nonce_size + time_nonce \
+        return uuid + label + version + time_nonce_size + time_nonce \
             + key_pair_size + key_pair + sig
 
     @classmethod
     def recv(cls, handler):
+        uuid = cls._uuid_(handler)
+        if uuid is None: return None
+
         label = cls._label_(handler)
         if label is None: return None
 
@@ -135,7 +142,23 @@ class Registration(Labeled):
         if sig is None: return None
         sig = bytes(sig)
 
-        return cls(label, version, time_nonce, key_pair, sig)
+        return cls(uuid, label, version, time_nonce, key_pair, sig)
+
+
+class ReRegistration(Registration):
+    def __init__(self, uuid, label, version, ref_uuid, key_pair_pem, signature):
+        super().__init__(uuid, label, version, ref_uuid, key_pair_pem,
+                         signature)
+
+    def _str_(self):
+        return ', '.join([
+            super()._str_(),
+            f'ref_uuid={self.ref_uuid}'
+        ])
+
+    @property
+    def ref_uuid(self):
+        return UUID(self.time_nonce)
 
 
 class RegistrationSuccess(Identified):

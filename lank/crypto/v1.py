@@ -45,15 +45,34 @@ class Handler(Base):
     ENCRYPT_PAD_ALGO = hashes.SHA256
     ENCRYPT_PAD_LABEL = None
 
-    REGISTER_MSG = 'Spread love everywhere you go. ' \
-        + 'Let no one ever come to you without leaving happier.'
+    REGISTER_MSG = 'Spread love everywhere you go.' \
+        + ' Let no one ever come to you without leaving happier.'
         # --Mother Teresa
+
+    REREGISTER_MSG = 'Tis a lesson you should heed, try, try again.' \
+        + " If at first you don't succeed, try, try, and try again."
+        # --Thomas H. Palmer
 
     def make_time_nonce(self):
         return f'{datetime.now().timestamp()}|{random.randrange(2**32)}'
 
-    def get_register_message(self, time_nonce):
-        return f'{self.REGISTER_MSG}~{time_nonce}'.encode(self.TEXT_ENCODING)
+    def get_register_message(self, label, time_nonce):
+        assert label
+        assert time_nonce
+
+        msg = f'{label}~{self.REGISTER_MSG}~{time_nonce}'
+        return msg.encode(self.TEXT_ENCODING) + b'\x81'
+
+    def get_reregister_message(self, existing_tn_or_ref, existing_uuid,
+                               new_key_pair_pem):
+        assert existing_tn_or_ref
+        assert existing_uuid
+        assert new_key_pair_pem
+
+        msg = f'{existing_uuid}~{self.REREGISTER_MSG}~{existing_tn_or_ref}~'
+        msg = msg.encode(self.TEXT_ENCODING) + new_key_pair_pem + b'\x42'
+        #print(f'*****\n{msg}\n*****')
+        return msg
 
     def make_keys(self, password=None):
         priv_key = rsa.generate_private_key(
@@ -79,43 +98,15 @@ class Handler(Base):
 
         return (priv_key, priv_key_pem, pub_key_pem)
 
-    '''
-    def get_private_key(self, label, password=None):
-        label_id = ldb.get_label_by_name(label)
-        if not label_id: return None
-
-        label_id = label_id['id']
-        registration = ldb.find_signed(label_id, ldb.NAME_REGISTER, limit=1)
-        assert registration is not None
-        registration = registration[0]
-        #FIXME: check signed version
-
-        if password:
-            password = password.encode(self.TEXT_ENCODING)
-
-        return serialization.load_pem_private_key(
-            registration['address'], password=password)
-
-    def get_public_key(self, label):
-        label_id = ldb.get_label_by_name(label)
-        if not label_id: return None
-
-        label_id = label_id['id']
-        registration = ldb.find_signed(label_id, ldb.NAME_REGISTER, limit=1)
-        assert registration is not None
-        registration = registration[0]
-        #FIXME: check signed version
-
-        return serialization.load_pem_public_key(
-            registration['address'])
-    '''
-
     def load_private_key(self, key_pair_pem, password=None):
         if password:
             password = password.encode(self.TEXT_ENCODING)
 
         return serialization.load_pem_private_key(key_pair_pem,
                                                   password=password)
+
+    def load_public_key(self, key_pair_pem):
+        return serialization.load_pem_public_key(key_pair_pem)
 
     def encrypt(self, pub_key, data):
         return pub_key.encrypt(

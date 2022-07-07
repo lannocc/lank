@@ -147,3 +147,68 @@ class Signed(Identified, Labeled, Timestamped):
 
         return cls(ver, uuid, label, name, key, addr, sig, node_uuid, created)
 
+
+class SignedUUIDNotFound(Identified):
+    pass
+
+
+class SignedLabelMismatch(Identified, Labeled):
+    def __init__(self, uuid, label):
+        Identified.__init__(self, uuid)
+        Labeled.__init__(self, label)
+
+    def _str_(self):
+        return ', '.join([
+            Identified._str_(self),
+            Labeled._str_(self),
+        ])
+
+    def to_bytes(self, handler):
+        uuid = Identified.to_bytes(self, handler)
+        label = Labeled.to_bytes(self, handler)
+
+        return uuid + label
+
+    @classmethod
+    def recv(cls, handler):
+        uuid = cls._uuid_(handler)
+        if uuid is None: return None
+
+        label = cls._label_(handler)
+        if label is None: return None
+
+        return cls(uuid, label)
+
+
+class SignedNameMismatch(Identified):
+    NAME_SIZE = 1 # bytes
+
+    def __init__(self, uuid, name_id):
+        Identified.__init__(self, uuid)
+        self.name_id = name_id
+
+    def _str_(self):
+        return ', '.join([
+            Identified._str_(self),
+            f'name_id={self.name_id}',
+        ])
+
+    def to_bytes(self, handler):
+        uuid = Identified.to_bytes(self, handler)
+
+        assert self.name_id > 0 and self.name_id < 256**self.NAME_SIZE
+        name = self.name_id.to_bytes(self.NAME_SIZE, handler.BYTE_ORDER)
+
+        return uuid + name
+
+    @classmethod
+    def recv(cls, handler):
+        uuid = cls._uuid_(handler)
+        if uuid is None: return None
+
+        name = handler.recv_bytes(cls.NAME_SIZE)
+        if name is None: return None
+        name = int.from_bytes(name, handler.BYTE_ORDER)
+
+        return cls(uuid, name)
+

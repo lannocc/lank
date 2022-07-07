@@ -1,7 +1,11 @@
 Copyright (C) 2022 LANNOCC (Shawn A. Wilson)
 @%@~LICENSE:MIT~@%@
 
-saw_070722_1 - Fix error with register command.
+saw_070622_3 - Implement re-registration. Fix a security concern for
+               registration... this will invalidate existing signed entries.
+               Implement proper signature verification on nodes.
+
+saw_070622_2 - Fix error with register command.
 
 saw_070622_1 - Much work implementiong node protocol v2 and proper node-based
                registration.

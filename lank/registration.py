@@ -7,6 +7,7 @@ from queue import Queue, Full
 import socket
 import sys
 from getpass import getpass
+from uuid import uuid4
 
 
 class Interactive:
@@ -35,7 +36,10 @@ class Interactive:
                 print('ABORTED')
                 return
 
-            exists = client.check_label(label)
+            uuid = uuid4()
+            exists = client.check_label(uuid, label)
+            exists_priv_key = None
+
             if exists is None:
                 print('ABORTED')
                 return
@@ -45,6 +49,7 @@ class Interactive:
 
             else:
                 print('   A label with that name already exists.')
+                uuid = exists.uuid
 
                 try:
                     priv_key = self.crypto.load_private_key(exists.key_pair_pem)
@@ -57,14 +62,14 @@ class Interactive:
                 except TypeError: # (needs a password)
                     pass # this is expected
 
-                password = getpass('Existing Password: ')
-                if not password:
+                exists_password = getpass('Existing Password: ')
+                if not exists_password:
                     print('ABORTED')
                     return
 
                 try:
                     priv_key = self.crypto.load_private_key(exists.key_pair_pem,
-                                                            password=password)
+                        password=exists_password)
 
                 except ValueError as e:
                     if e.args: e = ' | '.join(e.args)
@@ -72,7 +77,12 @@ class Interactive:
                     print('ABORTED')
                     return
 
+                exists_priv_key = priv_key
                 password = getpass('New Password: ')
+
+                if password == exists_password:
+                    print('   ' \
+                        + 'WARNING: New password is same as the old password.')
 
             if password:
                 results = self.crypto.PASS_POLICY.test(password)
@@ -116,20 +126,32 @@ class Interactive:
 
             print('Creating signature...', end='')
             sys.stdout.flush()
-            time_nonce = self.crypto.make_time_nonce()
-            msg = self.crypto.get_register_message(time_nonce)
-            signature = self.crypto.sign(priv_key, msg)
+            if not exists:
+                time_nonce = self.crypto.make_time_nonce()
+                msg = self.crypto.get_register_message(label, time_nonce)
+                signature = self.crypto.sign(priv_key, msg)
+            else:
+                time_nonce = None
+                msg = self.crypto.get_reregister_message(
+                    exists.time_nonce,
+                    exists.uuid,
+                    priv_key_pem + pub_key_pem)
+                signature = self.crypto.sign(exists_priv_key, msg)
             print(' [done]')
 
             print('Sanity check...', end='')
             sys.stdout.flush()
-            assert self.crypto.verify(priv_key.public_key(), msg, signature)
+            if not exists:
+                assert self.crypto.verify(priv_key.public_key(), msg, signature)
+            else:
+                assert self.crypto.verify(exists_priv_key.public_key(), msg,
+                                          signature)
             print(' [done]')
 
             print('Transmitting...', end='')
             sys.stdout.flush()
-            if client.register_label(label, time_nonce, priv_key_pem,
-                    pub_key_pem, signature, self.crypto.VERSION):
+            if client.register_label(uuid, label, priv_key_pem, pub_key_pem,
+                    signature, self.crypto.VERSION, time_nonce):
                 print(' [SUCCESS]')
 
             else:
@@ -154,9 +176,9 @@ class Client(Thread):
         #print('STOP')
         self.go = False
 
-    def check_label(self, label):
+    def check_label(self, uuid, label):
         self.ready.clear()
-        self.input = Reservation(label)
+        self.input = Reservation(label, uuid)
         self.ready.wait()
 
         if isinstance(self.output, Reservation):
@@ -180,12 +202,19 @@ class Client(Thread):
         else:
             return None
 
-    def register_label(self, label, time_nonce, priv_key_pem, pub_key_pem,
-                       signature, version):
+    def register_label(self, uuid, label, priv_key_pem, pub_key_pem,
+                       signature, version, time_nonce=None):
         self.ready.clear()
-        self.input = Registration(label, version, time_nonce,
-                                  priv_key_pem + pub_key_pem,
-                                  signature)
+
+        if time_nonce:
+            self.input = Registration(uuid, label, version, time_nonce,
+                                      priv_key_pem + pub_key_pem,
+                                      signature)
+        else:
+            self.input = ReRegistration(uuid4(), label, version, str(uuid),
+                                      priv_key_pem + pub_key_pem,
+                                      signature)
+
         self.ready.wait()
 
         if isinstance(self.output, RegistrationSuccess):
