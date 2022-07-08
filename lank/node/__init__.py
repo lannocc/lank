@@ -58,14 +58,12 @@ class Master:
         #self.labels = { }
 
         self.labels_by_id = bidict({ })
-
         self.nodes_by_uuid = { }
         self.nodes_client = { }
-
         self.reservations = { }
         self.registrations = { }
-
         self.signed_recently = { }
+        self.peers_by_label = { }
 
     def run(self):
         for label in ldb.list_labels():
@@ -95,8 +93,9 @@ class Master:
 
     def status(self):
         nodes = len(self.nodes_by_uuid)
+        peers = len(self.peers_by_label)
         time = self.now().isoformat()
-        print(f'** STATUS ** nodes={nodes} ** time={time}')
+        print(f'** STATUS ** nodes={nodes} ** peers={peers} ** time={time}')
 
     def broadcast_nodes(self, msg, skip=None):
         print(f'B    (NODES) <- {msg}')

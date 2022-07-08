@@ -1,4 +1,4 @@
-from .base import Labeled, Identified
+from .base import Labeled, Identified, Autographed
 
 from uuid import UUID, uuid4
 
@@ -59,36 +59,30 @@ class ReservationRequired(Labeled):
     pass
 
 
-class Registration(Identified, Labeled):
-    VERSION_SIZE = 1 # bytes
+class Registration(Autographed, Identified, Labeled):
     TIME_NONCE_SIZE_SIZE = 1 # bytes
     KEY_PAIR_SIZE_SIZE = 2 # bytes
-    SIG_SIZE = 512 # bytes
 
     def __init__(self, uuid, label, version, time_nonce, key_pair_pem,
                  signature):
         Identified.__init__(self, uuid)
         Labeled.__init__(self, label)
-        self.version = version
+        Autographed.__init__(self, version, signature)
         self.time_nonce = time_nonce
         self.key_pair_pem = key_pair_pem
-        self.signature = signature
 
     def _str_(self):
         return ', '.join([
             Identified._str_(self),
             Labeled._str_(self),
-            f'version={self.version}',
+            Autographed._str_(self),
             #f'time_nonce={self.time_nonce}',
         ])
 
     def to_bytes(self, handler):
+        autograph = Autographed.to_bytes(self, handler)
         uuid = Identified.to_bytes(self, handler)
         label = Labeled.to_bytes(self, handler)
-
-        version = self.version
-        assert version > 0 and version < 256**self.VERSION_SIZE
-        version = version.to_bytes(self.VERSION_SIZE, handler.BYTE_ORDER)
 
         time_nonce = self.time_nonce.encode(handler.ENCODING)
         time_nonce_size = len(time_nonce)
@@ -104,23 +98,22 @@ class Registration(Identified, Labeled):
         key_pair_size = key_pair_size.to_bytes(self.KEY_PAIR_SIZE_SIZE,
                                                handler.BYTE_ORDER)
 
-        sig = self.signature
-        assert len(sig) == self.SIG_SIZE
-
-        return uuid + label + version + time_nonce_size + time_nonce \
-            + key_pair_size + key_pair + sig
+        return autograph + uuid + label + time_nonce_size + time_nonce \
+            + key_pair_size + key_pair
 
     @classmethod
     def recv(cls, handler):
+        ver = cls._version_(handler)
+        if ver is None: return None
+
+        sig = cls._signature_(handler)
+        if sig is None: return None
+
         uuid = cls._uuid_(handler)
         if uuid is None: return None
 
         label = cls._label_(handler)
         if label is None: return None
-
-        version = handler.recv_bytes(cls.VERSION_SIZE)
-        if version is None: return None
-        version = int.from_bytes(version, handler.BYTE_ORDER)
 
         size = handler.recv_bytes(cls.TIME_NONCE_SIZE_SIZE)
         if size is None: return None
@@ -138,11 +131,7 @@ class Registration(Identified, Labeled):
         if key_pair is None: return None
         key_pair = bytes(key_pair)
 
-        sig = handler.recv_bytes(cls.SIG_SIZE)
-        if sig is None: return None
-        sig = bytes(sig)
-
-        return cls(uuid, label, version, time_nonce, key_pair, sig)
+        return cls(uuid, label, ver, time_nonce, key_pair, sig)
 
 
 class ReRegistration(Registration):

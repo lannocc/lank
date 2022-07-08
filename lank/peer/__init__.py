@@ -14,7 +14,7 @@ HELLO_TIMEOUT = 9 # seconds
 GENERAL_TIMEOUT = 9 * 60 # seconds
 
 
-class Server:
+class Master:
     def __init__(self, crypto, priv_key, port=DEFAULT_PORT):
         self.crypto = crypto
         self.priv_key = priv_key

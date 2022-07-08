@@ -156,3 +156,50 @@ class Labeled(Message, ABC):
         label = str(label, handler.ENCODING)
         return label
 
+
+class Autographed(Message, ABC):
+    VERSION_SIZE = 1 # bytes
+    SIG_SIZE = 512 # bytes
+
+    def __init__(self, version, signature):
+        self.version = version
+        self.signature = signature
+
+    def _str_(self):
+        return f'version={self.version} ' \
+            + ('(signed)' if self.signature else '(NOT SIGNED)')
+
+    def to_bytes(self, handler):
+        ver = self.version
+        assert ver > 0 and ver < 256**self.VERSION_SIZE
+        ver = ver.to_bytes(self.VERSION_SIZE, handler.BYTE_ORDER)
+
+        sig = self.signature
+        assert len(sig) == self.SIG_SIZE
+
+        return ver + sig
+
+    @classmethod
+    def recv(cls, handler):
+        ver = cls._version_(handler)
+        if ver is None: return None
+
+        sig = cls._signature_(handler)
+        if sig is None: return None
+
+        return cls(ver, sig)
+
+    @classmethod
+    def _version_(cls, handler):
+        ver = handler.recv_bytes(cls.VERSION_SIZE)
+        if ver is None: return None
+        ver = int.from_bytes(ver, handler.BYTE_ORDER)
+        return ver
+
+    @classmethod
+    def _signature_(cls, handler):
+        sig = handler.recv_bytes(cls.SIG_SIZE)
+        if sig is None: return None
+        sig = bytes(sig)
+        return sig
+

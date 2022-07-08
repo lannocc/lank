@@ -2,6 +2,7 @@ from ..v1 import Handler as Base
 from .. import KEEPALIVE, MAX_TIME_SKEW
 from .ack import *
 from .sync import *
+from .peer import *
 from .register import *
 from .deny import *
 import lank.node.db as ldb
@@ -43,10 +44,13 @@ class Handler(Base):
         19: SignedLabelMismatch,
         20: SignedNameMismatch,
         21: SignatureFailure,
+        22: PeerOn,
+        23: PeerAlreadyConnected,
     })
 
     def client(self, master):
         self.node_uuid = None
+        self.peer_label = None
 
         sync = ldb.get_last_signed_created()
         if sync:
@@ -127,6 +131,7 @@ class Handler(Base):
 
     def server(self, master):
         self.node_uuid = None
+        self.peer_label = None
 
         try:
             while msg := self.s_recv():
@@ -136,30 +141,7 @@ class Handler(Base):
                     reply = Pong(msg.nonce)
 
                 elif isinstance(msg, NodeOn):
-                    if msg.uuid == master.uuid:
-                        reply = NodeIsSelf()
-
-                    elif msg.uuid in master.nodes_by_uuid:
-                        reply = NodeAlreadyConnected()
-
-                    elif not msg.check_time_skew(master.now(), MAX_TIME_SKEW):
-                        reply = NodeTimeSkewed()
-
-                    else:
-                        self.node_uuid = msg.uuid
-
-                        sync = ldb.get_last_signed_created()
-                        if sync:
-                            sync = datetime.fromisoformat(sync)
-                            sync -= timedelta(seconds=self.SYNC_MARGIN)
-
-                        self.s_send(NodeOn(master.now(), master.uuid, sync,
-                            msg.nonce))
-
-                        self.sync_signed(master, self.s_send, sync, msg)
-
-                        master.nodes_by_uuid[self.node_uuid] = self
-                        master.status()
+                    reply = self.node_on(master, msg)
 
                 elif isinstance(msg, Reservation):
                     reply = self.reservation(master, msg)
@@ -182,6 +164,9 @@ class Handler(Base):
 
                     else:
                         reply = self.signed(master, msg)
+
+                elif isinstance(msg, PeerOn):
+                    reply = self.peer_on(master, msg)
 
                 #elif isinstance(msg, SignOn):
                 #    master.sign_on(self.sock, msg.label, self.addr)
@@ -212,10 +197,49 @@ class Handler(Base):
                 del master.nodes_by_uuid[self.node_uuid]
                 master.status()
 
+            if self.peer_label:
+                del master.peers_by_label[self.peer_label]
+                master.status()
+
     def send(self, msg):
         id_bytes = self.get_id_bytes(msg)
         data = msg.to_bytes(self)
         self.sock.sendall(id_bytes + (data if data else b''))
+
+    def node_on(self, master, msg):
+        assert isinstance(msg, NodeOn)
+
+        if self.node_uuid:
+            return NodeAlreadyConnected()
+
+        if self.peer_label:
+            return PeerAlreadyConnected()
+
+        if msg.uuid == master.uuid:
+            return NodeIsSelf()
+
+        if msg.uuid in master.nodes_by_uuid:
+            return NodeAlreadyConnected()
+
+        if not msg.check_time_skew(master.now(), MAX_TIME_SKEW):
+            return NodeTimeSkewed()
+
+        self.node_uuid = msg.uuid
+
+        sync = ldb.get_last_signed_created()
+        if sync:
+            sync = datetime.fromisoformat(sync)
+            sync -= timedelta(seconds=self.SYNC_MARGIN)
+
+        self.s_send(NodeOn(master.now(), master.uuid, sync,
+            msg.nonce))
+
+        self.sync_signed(master, self.s_send, sync, msg)
+
+        master.nodes_by_uuid[self.node_uuid] = self
+        master.status()
+
+        return None
 
     def reservation(self, master, msg):
         assert isinstance(msg, Reservation)
@@ -281,7 +305,7 @@ class Handler(Base):
             return SignatureFailure(msg.uuid)
 
         label_id = None
-        addr = str(msg.key_pair_pem, self.ENCODING)
+        addr = str(msg.key_pair_pem, crypto.ENCODING)
 
         with ldb.Transaction():
             label_id = ldb.insert_label(msg.label)
@@ -327,7 +351,7 @@ class Handler(Base):
 
         crypto = get_crypto(signed['version'])
         pub_key = crypto.load_public_key(
-                        signed['address'].encode(self.ENCODING))
+                        signed['address'].encode(crypto.ENCODING))
         data = crypto.get_reregister_message(signed['key'], signed['uuid'],
                                              msg.key_pair_pem)
 
@@ -335,7 +359,7 @@ class Handler(Base):
             return SignatureFailure(msg.uuid)
 
         key = f'M:{msg.ref_uuid}'
-        addr = str(msg.key_pair_pem, self.ENCODING)
+        addr = str(msg.key_pair_pem, crypto.ENCODING)
 
         with ldb.Transaction():
             time = master.now()
@@ -374,23 +398,25 @@ class Handler(Base):
         assert len(signed)==1
         signed = signed[0]
 
+        crypto = get_crypto(signed['version'])
+
         return Registration(
             UUID(signed['uuid']),
             msg.label,
             signed['version'],
             signed['key'],
-            signed['address'].encode(self.ENCODING),
+            signed['address'].encode(crypto.ENCODING),
             signed['signature'])
 
     def signed(self, master, msg):
         assert isinstance(msg, Signed)
 
         if msg.uuid in master.signed_recently:
-            return
+            return None
 
         exists = ldb.get_signed_by_uuid(str(msg.uuid))
         if exists:
-            return
+            return None
 
         crypto = get_crypto(msg.version)
 
@@ -407,20 +433,41 @@ class Handler(Base):
                     raise KeyError(f'signed name mismatch: {signed["name"]}')
 
                 pub_key = crypto.load_public_key(
-                            signed['address'].encode(self.ENCODING))
+                            signed['address'].encode(crypto.ENCODING))
                 data = crypto.get_reregister_message(signed['key'],
-                            signed['uuid'], msg.address.encode(self.ENCODING))
+                            signed['uuid'], msg.address.encode(crypto.ENCODING))
 
                 if not crypto.verify(pub_key, data, msg.signature):
                     return SignatureFailure(msg.uuid)
 
             else: # initial registration (time_nonce)
                 pub_key = crypto.load_public_key(
-                    msg.address.encode(self.ENCODING))
+                    msg.address.encode(crypto.ENCODING))
                 data = crypto.get_register_message(msg.label, msg.key)
 
                 if not crypto.verify(pub_key, data, msg.signature):
                     return SignatureFailure(msg.uuid)
+
+        elif msg.name == ldb.NAME_PEER:
+            if msg.label not in master.labels_by_id.inverse:
+                return LabelNotFound(msg.label)
+
+            label_id = master.labels_by_id.inverse[msg.label]
+            signed = ldb.find_signed_by_label_name(label_id, ldb.NAME_REGISTER,
+                                                   limit=1)
+
+            assert signed
+            assert len(signed)==1
+            signed = signed[0]
+
+            pub_key = crypto.load_public_key(
+                signed['address'].encode(crypto.ENCODING))
+            host = msg.address[:msg.address.index(':')]
+            port = int(msg.address[msg.address.index(':')+1:])
+            data = PeerOn._to_sign_(crypto, msg.uuid, msg.label, host, port)
+
+            if not crypto.verify(pub_key, data, msg.signature):
+                return SignatureFailure(msg.uuid)
 
         else:
             raise ValueError(f'unsupported signed name id: {msg.name}')
@@ -480,4 +527,73 @@ class Handler(Base):
 
         #reply = NodeOn(master.now(), master.uuid, sync,
         #    msg.nonce)
+
+    def peer_on(self, master, msg):
+        assert isinstance(msg, PeerOn)
+
+        if self.peer_label:
+            # FIXME: maybe allow this?
+            #       (e.g. peer switching identity or multiple-login)
+            return PeerAlreadyConnected()
+
+        if self.node_uuid:
+            return NodeAlreadyConnected()
+
+        if not master.nodes_by_uuid:
+            return NodeIsIsolated()
+
+        try:
+            label_id = master.labels_by_id.inverse[msg.label]
+
+        except KeyError:
+            return LabelNotFound(msg.label)
+
+        signed = ldb.find_signed_by_label_name(label_id, ldb.NAME_REGISTER,
+                                               limit=1)
+
+        assert signed
+        assert len(signed)==1
+        signed = signed[0]
+
+        crypto = get_crypto(msg.version)
+        key_pair_pem = signed['address'].encode(crypto.ENCODING)
+        pub_key = crypto.load_public_key(key_pair_pem)
+        data = msg.to_sign(crypto)
+
+        if not crypto.verify(pub_key, data, msg.signature):
+            return SignatureFailure(msg.uuid)
+
+        assert ':' not in self.addr[0]
+        key = f'{self.addr[0]}:{self.addr[1]}'
+
+        assert ':' not in msg.host
+        addr = f'{msg.host}:{msg.port}'
+
+        with ldb.Transaction():
+            time = master.now()
+
+            ldb.insert_signed(str(msg.uuid), label_id,
+                ldb.NAME_PEER, key, addr,
+                msg.signature, msg.version, str(master.uuid), time)
+
+            master.signed_recently[msg.uuid] = time
+
+        self.peer_label = msg.label
+        master.peers_by_label[self.peer_label] = self
+        master.status()
+
+        reply = Signed(
+            msg.version,
+            msg.uuid,
+            msg.label,
+            ldb.NAME_PEER,
+            key,
+            addr,
+            msg.signature,
+            master.uuid,
+            time
+        )
+
+        master.broadcast_nodes(reply, skip=self)
+        return reply
 

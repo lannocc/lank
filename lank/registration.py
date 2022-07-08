@@ -3,7 +3,6 @@ from .node import NODES, HELLO_TIMEOUT, GENERAL_TIMEOUT, KEEPALIVE
 from .node.protocol.v2 import *
 
 from threading import Thread, Event
-from queue import Queue, Full
 import socket
 import sys
 from getpass import getpass
@@ -168,7 +167,6 @@ class Client(Thread):
         self.go = False
 
         self.ready = Event()
-        #self.queue = Queue(maxsize=2)
         self.input = None
         self.output = None
 

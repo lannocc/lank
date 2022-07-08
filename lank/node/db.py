@@ -6,7 +6,7 @@ from datetime import datetime
 import uuid
 
 
-VERSION = 3
+VERSION = 4
 
 # meta table entries
 META_VERSION = 'db_version'
@@ -14,6 +14,7 @@ META_NODE_UUID = 'node_uuid'
 
 # name table entries
 NAME_REGISTER = 10
+NAME_PEER = 20
 
 
 #print(f'databasing "{DB}" ...')
@@ -225,6 +226,7 @@ cur.executemany('''
     )
 ''', [
     (NAME_REGISTER, 'registration'),
+    (NAME_PEER, 'peer'),
 ])
 
 def get_name(name_id):

@@ -20,7 +20,7 @@ import sys
 class Handler(Base):
     VERSION = 1
 
-    TEXT_ENCODING = 'utf-8'
+    ENCODING = 'utf-8'
     PASS_POLICY = PasswordPolicy.from_names(
         length=8, uppercase=1, numbers=1, special=1, #nonletters=1,
         strength=0.5)
@@ -61,7 +61,7 @@ class Handler(Base):
         assert time_nonce
 
         msg = f'{label}~{self.REGISTER_MSG}~{time_nonce}'
-        return msg.encode(self.TEXT_ENCODING) + b'\x81'
+        return msg.encode(self.ENCODING) + b'\x81'
 
     def get_reregister_message(self, existing_tn_or_ref, existing_uuid,
                                new_key_pair_pem):
@@ -70,7 +70,7 @@ class Handler(Base):
         assert new_key_pair_pem
 
         msg = f'{existing_uuid}~{self.REREGISTER_MSG}~{existing_tn_or_ref}~'
-        msg = msg.encode(self.TEXT_ENCODING) + new_key_pair_pem + b'\x42'
+        msg = msg.encode(self.ENCODING) + new_key_pair_pem + b'\x42'
         #print(f'*****\n{msg}\n*****')
         return msg
 
@@ -84,7 +84,7 @@ class Handler(Base):
                 encoding=self.KEY_ENCODING,
                 format=self.KEY_ENCRYPTED_FORMAT,
                 encryption_algorithm=serialization.BestAvailableEncryption(
-                    password.encode(self.TEXT_ENCODING)))
+                    password.encode(self.ENCODING)))
 
         else:
             priv_key_pem = priv_key.private_bytes(
@@ -100,7 +100,7 @@ class Handler(Base):
 
     def load_private_key(self, key_pair_pem, password=None):
         if password:
-            password = password.encode(self.TEXT_ENCODING)
+            password = password.encode(self.ENCODING)
 
         return serialization.load_pem_private_key(key_pair_pem,
                                                   password=password)

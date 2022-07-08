@@ -20,7 +20,7 @@ def run():
         install_requires=[
             'appdirs',
             'bidict',
-            'cryptography',
+            'cryptography >= 37.0.4',
             'gevent',
             'ntplib',
             'password-strength',
