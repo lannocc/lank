@@ -5,7 +5,6 @@ from .sync import *
 from .peer import *
 from .register import *
 from .deny import *
-import lank.node.db as ldb
 from lank.crypto import get_handler as get_crypto
 
 from bidict import bidict
@@ -56,7 +55,7 @@ class Handler(Base):
         self.node_uuid = None
         self.peer_label = None
 
-        sync = ldb.get_last_signed_created()
+        sync = master.ldb.get_last_signed_created()
         if sync:
             sync = datetime.fromisoformat(sync)
             sync -= timedelta(seconds=self.SYNC_MARGIN)
@@ -220,7 +219,7 @@ class Handler(Base):
 
         self.node_uuid = msg.uuid
 
-        sync = ldb.get_last_signed_created()
+        sync = master.ldb.get_last_signed_created()
         if sync:
             sync = datetime.fromisoformat(sync)
             sync -= timedelta(seconds=self.SYNC_MARGIN)
@@ -254,7 +253,7 @@ class Handler(Base):
             else: # just an echo from another node?
                 pass
 
-        elif ldb.get_label_by_name(msg.label):
+        elif master.ldb.get_label_by_name(msg.label):
             reply = ReservationCancel(msg.label, True)
 
         else:
@@ -301,12 +300,12 @@ class Handler(Base):
         label_id = None
         addr = str(msg.key_pair_pem, crypto.ENCODING)
 
-        with ldb.Transaction():
-            label_id = ldb.insert_label(msg.label)
+        with master.ldb.Transaction():
+            label_id = master.ldb.insert_label(msg.label)
             time = master.now()
 
-            ldb.insert_signed(str(msg.uuid), label_id,
-                ldb.NAME_REGISTER, msg.time_nonce, addr,
+            master.ldb.insert_signed(str(msg.uuid), label_id,
+                master.ldb.NAME_REGISTER, msg.time_nonce, addr,
                 msg.signature, msg.version, str(master.uuid), time)
 
             master.signed_recently[res_uuid] = time
@@ -318,7 +317,7 @@ class Handler(Base):
             msg.version,
             res_uuid,
             msg.label,
-            ldb.NAME_REGISTER,
+            master.ldb.NAME_REGISTER,
             msg.time_nonce,
             addr,
             msg.signature,
@@ -334,14 +333,14 @@ class Handler(Base):
         if not master.nodes_by_uuid:
             return NodeIsIsolated()
 
-        signed = ldb.get_signed_by_uuid(str(msg.ref_uuid))
+        signed = master.ldb.get_signed_by_uuid(str(msg.ref_uuid))
 
         if not signed:
             return SignedUUIDNotFound(msg.ref_uuid)
         if master.labels_by_id[signed['label']] != msg.label:
             return SignedLabelMismatch(msg.ref_uuid, msg.label)
-        if signed['name'] != ldb.NAME_REGISTER:
-            return SignedNameMismatch(msg.ref_uuid, ldb.NAME_REGISTER)
+        if signed['name'] != master.ldb.NAME_REGISTER:
+            return SignedNameMismatch(msg.ref_uuid, master.ldb.NAME_REGISTER)
 
         crypto = get_crypto(signed['version'])
         pub_key = crypto.load_public_key(
@@ -355,11 +354,11 @@ class Handler(Base):
         key = f'M:{msg.ref_uuid}'
         addr = str(msg.key_pair_pem, crypto.ENCODING)
 
-        with ldb.Transaction():
+        with master.ldb.Transaction():
             time = master.now()
 
-            ldb.insert_signed(str(msg.uuid), signed['label'],
-                ldb.NAME_REGISTER, key, addr,
+            master.ldb.insert_signed(str(msg.uuid), signed['label'],
+                master.ldb.NAME_REGISTER, key, addr,
                 msg.signature, msg.version, str(master.uuid), time)
 
             master.signed_recently[msg.uuid] = time
@@ -368,7 +367,7 @@ class Handler(Base):
             msg.version,
             msg.uuid,
             msg.label,
-            ldb.NAME_REGISTER,
+            master.ldb.NAME_REGISTER,
             key,
             addr,
             msg.signature,
@@ -385,7 +384,8 @@ class Handler(Base):
             return LabelNotFound(msg.label)
 
         label_id = master.labels_by_id.inverse[msg.label]
-        signed = ldb.find_signed_by_label_name(label_id, ldb.NAME_REGISTER,
+        signed = master.ldb.find_signed_by_label_name(label_id,
+                                master.ldb.NAME_REGISTER,
                                                limit=1)
 
         assert signed
@@ -411,22 +411,22 @@ class Handler(Base):
         if msg.uuid in master.signed_recently:
             return None
 
-        exists = ldb.get_signed_by_uuid(str(msg.uuid))
+        exists = master.ldb.get_signed_by_uuid(str(msg.uuid))
         if exists:
             return None
 
         crypto = get_crypto(msg.version)
 
-        if msg.name == ldb.NAME_REGISTER:
+        if msg.name == master.ldb.NAME_REGISTER:
             if msg.key.startswith('M:'): # re-register (ref uuid)
                 ref_uuid = msg.key[2:]
-                signed = ldb.get_signed_by_uuid(ref_uuid)
+                signed = master.ldb.get_signed_by_uuid(ref_uuid)
 
                 if not signed:
                     raise KeyError(f'signed uuid ref not found: {ref_uuid}')
                 if master.labels_by_id[signed['label']] != msg.label:
                     raise KeyError(f'signed label mismatch: {msg.label}')
-                if signed['name'] != ldb.NAME_REGISTER:
+                if signed['name'] != master.ldb.NAME_REGISTER:
                     raise KeyError(f'signed name mismatch: {signed["name"]}')
 
                 pub_key = crypto.load_public_key(
@@ -445,12 +445,13 @@ class Handler(Base):
                 if not crypto.verify(pub_key, data, msg.signature):
                     return SignatureFailure(msg.uuid)
 
-        elif msg.name == ldb.NAME_PEER:
+        elif msg.name == master.ldb.NAME_PEER:
             if msg.label not in master.labels_by_id.inverse:
                 return LabelNotFound(msg.label)
 
             label_id = master.labels_by_id.inverse[msg.label]
-            signed = ldb.find_signed_by_label_name(label_id, ldb.NAME_REGISTER,
+            signed = master.ldb.find_signed_by_label_name(label_id,
+                                master.ldb.NAME_REGISTER,
                                                    limit=1)
 
             assert signed
@@ -470,13 +471,13 @@ class Handler(Base):
             raise ValueError(f'unsupported signed name id: {msg.name}')
 
         label_id = None
-        with ldb.Transaction():
+        with master.ldb.Transaction():
             try:
                 label_id = master.labels_by_id.inverse[msg.label]
             except KeyError:
-                label_id = ldb.insert_label(msg.label)
+                label_id = master.ldb.insert_label(msg.label)
 
-            ldb.insert_signed(str(msg.uuid), label_id, msg.name, msg.key,
+            master.ldb.insert_signed(str(msg.uuid), label_id, msg.name, msg.key,
                               msg.address, msg.signature, msg.version,
                               str(msg.node_uuid),
                               msg._to_datetime_(msg.timestamp))
@@ -500,9 +501,9 @@ class Handler(Base):
 
         if sync and (not msg_sync or msg_sync < sync):
             if not msg_sync:
-                signed_list = ldb.list_signed()
+                signed_list = master.ldb.list_signed()
             else:
-                signed_list = ldb.find_signed_since(msg_sync)
+                signed_list = master.ldb.find_signed_since(msg_sync)
 
             for signed in signed_list:
                 send(Signed(
@@ -545,8 +546,9 @@ class Handler(Base):
         except KeyError:
             return LabelNotFound(msg.label)
 
-        signed = ldb.find_signed_by_label_name(label_id, ldb.NAME_REGISTER,
-                                               limit=1)
+        signed = master.ldb.find_signed_by_label_name(label_id,
+                                                master.ldb.NAME_REGISTER,
+                                                limit=1)
 
         assert signed
         assert len(signed)==1
@@ -566,11 +568,11 @@ class Handler(Base):
         assert ':' not in msg.host
         addr = f'{msg.host}:{msg.port}'
 
-        with ldb.Transaction():
+        with master.ldb.Transaction():
             time = master.now()
 
-            ldb.insert_signed(str(msg.uuid), label_id,
-                ldb.NAME_PEER, key, addr,
+            master.ldb.insert_signed(str(msg.uuid), label_id,
+                master.ldb.NAME_PEER, key, addr,
                 msg.signature, msg.version, str(master.uuid), time)
 
             master.signed_recently[msg.uuid] = time
@@ -583,7 +585,7 @@ class Handler(Base):
             msg.version,
             msg.uuid,
             msg.label,
-            ldb.NAME_PEER,
+            master.ldb.NAME_PEER,
             key,
             addr,
             msg.signature,

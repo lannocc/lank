@@ -1,12 +1,9 @@
 from . import Handler as Base
-#import lank.db as ldb
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.exceptions import InvalidSignature
 from password_strength import PasswordPolicy
-#from password_strength.tests import (
-#    Length, Uppercase, Numbers, Special, NonLetters, Strength)
 
 from getpass import getpass
 from datetime import datetime

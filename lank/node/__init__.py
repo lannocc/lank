@@ -1,5 +1,4 @@
 from .protocol import get_handler, HELLO, KEEPALIVE, VERSION
-import lank.node.db as ldb
 
 from gevent import socket, wait #, spawn
 from gevent.pool import Pool
@@ -36,6 +35,9 @@ class Master:
     def __init__(self, port=DEFAULT_PORT):
         self.port = port
 
+        import lank.node.db as ldb
+        self.ldb = ldb
+
         uuid = ldb.get_meta(ldb.META_NODE_UUID)
         assert uuid
         self.uuid = UUID(uuid)
@@ -65,7 +67,7 @@ class Master:
         self.label_interests_by_handler = { }
 
     def run(self):
-        for label in ldb.list_labels():
+        for label in self.ldb.list_labels():
             self.labels_by_id[label['id']] = label['name']
 
         print(f'S  listening on port {self.port}')
