@@ -1,0 +1,5 @@
+
+
+REGISTER = 10
+PEER = 20
+

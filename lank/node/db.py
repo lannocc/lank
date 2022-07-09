@@ -1,4 +1,5 @@
 from ..config import DB
+from .. import name
 
 import sqlite3
 from contextlib import AbstractContextManager
@@ -13,8 +14,8 @@ META_VERSION = 'db_version'
 META_NODE_UUID = 'node_uuid'
 
 # name table entries
-NAME_REGISTER = 10
-NAME_PEER = 20
+NAME_REGISTER = name.REGISTER
+NAME_PEER = name.PEER
 
 
 #print(f'databasing "{DB}" ...')

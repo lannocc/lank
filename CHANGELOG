@@ -1,6 +1,8 @@
 Copyright (C) 2022 LANNOCC (Shawn A. Wilson)
 @%@~LICENSE:MIT~@%@
 
+saw_070922_1 - Move database "name" constants into their own file.
+
 saw_070822_2 - Make sure we don't create db unless we start a node master.
 
 saw_070822_1 - Implement ListLabels, LabelsList, LabelInterest, and LabelIgnore.
