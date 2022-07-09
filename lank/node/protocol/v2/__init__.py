@@ -91,7 +91,9 @@ class Handler(Base):
 
             while msg:
                 try:
-                    while msg := self.c_recv():
+                    #while msg := self.c_recv():
+                    msg = self.c_recv()
+                    while msg:
                         reply = None
 
                         if isinstance(msg, Pong):
@@ -123,6 +125,8 @@ class Handler(Base):
                                 msg = None
                                 break
 
+                        msg = self.c_recv()
+
                 except socket.timeout as e:
                     if ping: raise e
                     ping = Ping()
@@ -137,7 +141,9 @@ class Handler(Base):
         self.peer_label = None
 
         try:
-            while msg := self.s_recv():
+            #while msg := self.s_recv():
+            msg = self.s_recv()
+            while msg:
                 reply = None
 
                 if isinstance(msg, Ping):
@@ -184,6 +190,8 @@ class Handler(Base):
 
                     if isinstance(reply, Denial):
                         break
+
+                msg = self.s_recv()
 
         finally:
             if self.node_uuid:

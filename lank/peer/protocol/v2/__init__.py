@@ -28,7 +28,9 @@ class Handler(Base):
         self.label = None
 
     def server(self, master):
-        while msg := self.recv():
+        #while msg := self.recv():
+        msg = self.recv()
+        while msg:
             print(f'     {self.addr} -> {msg}')
             reply = None
 
@@ -45,6 +47,8 @@ class Handler(Base):
             if reply:
                 print(f'     {self.addr} <- {reply}')
                 self.send(reply)
+
+            msg = self.recv()
 
     def send(self, msg):
         id_bytes = self.get_id_bytes(msg)

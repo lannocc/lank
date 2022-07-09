@@ -19,7 +19,9 @@ class Handler(Base):
         raise NotImplementedError()
 
     def server(self, master):
-        while msg := self.s_recv():
+        #while msg := self.s_recv():
+        msg = self.s_recv()
+        while msg:
             reply = None
 
             if isinstance(msg, Ping):
@@ -30,6 +32,8 @@ class Handler(Base):
 
             if reply:
                 self.s_send(reply)
+
+            msg = self.s_recv()
 
     def send(self, msg):
         self.sock.sendall(self.get_id_bytes(msg))
