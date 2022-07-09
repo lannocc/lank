@@ -469,12 +469,11 @@ class Handler(Base):
             pub_key = crypto.load_public_key(
                 signed['address'].encode(crypto.ENCODING))
             host = msg.address[:msg.address.index(':')]
-            port = msg.address[msg.address.index(':')+1:]
-            if ':' in port:
-                port = port[:port.index(':')]
-                alias = port[port.index(':')+1:]
-            else:
-                alias = None
+            port = int(msg.address[msg.address.index(':')+1:])
+            alias = None
+            if ':' in msg.key[msg.key.index(':')+1:]:
+                alias = msg.key[msg.key.index(':')+1:]
+                alias = alias[alias.index(':')+1:]
             port = int(port)
             data = PeerOn._to_sign_(crypto, msg.uuid, msg.label, host, port,
                                     alias)
