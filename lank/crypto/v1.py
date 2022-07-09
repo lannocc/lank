@@ -101,6 +101,8 @@ class Handler(Base):
     def load_private_key(self, key_pair_pem, password=None):
         if password:
             password = password.encode(self.ENCODING)
+        else:
+            password = None # in case it was empty string
 
         return serialization.load_pem_private_key(key_pair_pem,
                                                   password=password)

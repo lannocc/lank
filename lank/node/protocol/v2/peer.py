@@ -1,4 +1,4 @@
-from .base import Autographed, Identified, Labeled
+from .base import Autographed, Identified, Labeled, Message
 
 from uuid import uuid4
 
@@ -77,4 +77,60 @@ class PeerOn(Autographed, Identified, Labeled):
             + label.encode(crypto.ENCODING) + b'\x00' \
             + host.encode(crypto.ENCODING) + b'\x00' \
             + f'{port}'.encode(crypto.ENCODING) + b'\xFF'
+
+
+class ListLabels(Message):
+    pass
+
+
+class LabelsList(Message):
+    COUNT_SIZE = 1 # bytes
+    LABEL_SIZE_SIZE = Labeled.LABEL_SIZE_SIZE # bytes
+
+    def __init__(self, labels):
+        self.labels = labels
+
+    def _str_(self):
+        return f'count={len(self.labels)}'
+
+    def to_bytes(self, handler):
+        count = len(self.labels)
+        assert count < 256**self.COUNT_SIZE
+        count = count.to_bytes(self.COUNT_SIZE, handler.BYTE_ORDER)
+
+        labels = b''
+        for label in self.labels:
+            label = label.encode(handler.ENCODING)
+            size = len(label)
+            assert size > 0 and size < 256**self.LABEL_SIZE_SIZE
+            size = size.to_bytes(self.LABEL_SIZE_SIZE, handler.BYTE_ORDER)
+            labels += size + label
+
+        return count + labels
+
+    @classmethod
+    def recv(cls, handler):
+        count = handler.recv_bytes(cls.COUNT_SIZE)
+        if count is None: return None
+        count = int.from_bytes(count, handler.BYTE_ORDER)
+
+        labels = [ ]
+        for i in range(count):
+            size = handler.recv_bytes(cls.LABEL_SIZE_SIZE)
+            if size is None: return None
+            size = int.from_bytes(size, handler.BYTE_ORDER)
+            label = handler.recv_bytes(size)
+            if label is None: return None
+            label = str(label, handler.ENCODING)
+            labels.append(label)
+
+        return cls(labels)
+
+
+class LabelInterest(Labeled):
+    pass
+
+
+class LabelIgnore(Labeled):
+    pass
 

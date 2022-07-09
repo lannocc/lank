@@ -1,4 +1,4 @@
-from .base import Nonced, Labeled
+from .base import Nonced
 
 
 class Ping(Nonced):
@@ -9,8 +9,4 @@ class Pong(Nonced):
     def __init__(self, nonce):
         assert nonce is not None
         super().__init__(nonce)
-
-
-class LabelNotFound(Labeled):
-    pass
 

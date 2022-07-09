@@ -54,9 +54,6 @@ class Master:
 
         self.buffer = bytearray(HELLO_SIZE)
 
-        #self.peers_by_sock = bidict({ })
-        #self.labels = { }
-
         self.labels_by_id = bidict({ })
         self.nodes_by_uuid = { }
         self.nodes_client = { }
@@ -64,6 +61,8 @@ class Master:
         self.registrations = { }
         self.signed_recently = { }
         self.peers_by_label = { }
+        self.label_interests_by_label = { }
+        self.label_interests_by_handler = { }
 
     def run(self):
         for label in ldb.list_labels():
@@ -102,11 +101,63 @@ class Master:
         self.pool.spawn(self._broadcast_nodes_, msg, skip)
 
     def _broadcast_nodes_(self, msg, skip=None):
+        try:
+            handlers = self.label_interests_by_label[msg.label]
+        except KeyError:
+            handlers = [ ]
+
         for handler in self.nodes_by_uuid.values():
             if handler is skip:
                 continue
 
+            if handler not in handlers:
+                handler.send(msg)
+
+        for handler in handlers:
             handler.send(msg)
+
+    def add_label_interest(self, label, handler):
+        try:
+            handlers = self.label_interests_by_label[label]
+        except KeyError:
+            handlers = [ ]
+            self.label_interests_by_label[label] = handlers
+
+        if handler not in handlers:
+            handlers.append(handler)
+
+        try:
+            labels = self.label_interests_by_handler[handler]
+        except KeyError:
+            labels = [ ]
+            self.label_interests_by_handler[handler] = labels
+
+        if label not in labels:
+            labels.append(label)
+
+    def remove_label_interest(self, label, handler):
+        try:
+            handlers = self.label_interests_by_label[label]
+        except KeyError:
+            return
+
+        if handler not in handlers:
+            return
+
+        del handlers[handlers.index(handler)]
+        labels = self.label_interests_by_handler[handler]
+        del labels[labels.index(label)]
+
+    def remove_label_interests(self, handler):
+        if handler not in self.label_interests_by_handler:
+            return
+
+        labels = self.label_interests_by_handler[handler]
+        for label in labels:
+            handlers = self.label_interests_by_label[label]
+            del handlers[handlers.index(handler)]
+
+        del self.label_interests_by_handler[handler]
 
     def client(self, addr):
         print(f'C+ connecting to {addr}')
@@ -136,11 +187,17 @@ class Master:
                 except socket.timeout:
                     print(f'C- terminated {addr} [GENERAL TIMEOUT]')
 
+                finally:
+                    self.remove_label_interests(handler)
+
             except BrokenPipeError:
                 print(f'C- closed {addr} [BROKEN PIPE]')
 
             except ConnectionResetError:
                 print(f'C- closed {addr} [CONNECTION RESET]')
+
+            except OSError:
+                print(f'C- closed {addr} [GENERAL NETWORK ERROR]')
 
             except socket.timeout:
                 print(f'C- terminated {addr} [HELLO TIMEOUT]')
@@ -167,11 +224,11 @@ class Master:
                     sock.settimeout(GENERAL_TIMEOUT)
 
                     try:
-                        protocol = get_handler(sock, addr)
+                        handler = get_handler(sock, addr)
 
-                        if protocol:
+                        if handler:
                             try:
-                                protocol.server(self)
+                                handler.server(self)
                                 print(f'S- finished {addr}')
 
                             except KeyError as e:
@@ -180,6 +237,9 @@ class Master:
                             except ValueError as e:
                                 print(f'S- terminated {addr}' \
                                     + f' [BAD MESSAGE: {e}]')
+
+                            finally:
+                                self.remove_label_interests(handler)
 
                         else:
                             print(f'S- closed {addr} [CLIENT ABORT]')
@@ -205,22 +265,9 @@ class Master:
         except ConnectionResetError:
             print(f'S- closed {addr} [CONNECTION RESET]')
 
+        except OSError:
+            print(f'S- closed {addr} [GENERAL NETWORK ERROR]')
+
         except socket.timeout:
             print(f'S- terminated {addr} [HELLO TIMEOUT]')
-
-        #finally:
-        #    if sock in self.peers_by_sock:
-        #        self.sign_off(self.peers_by_sock[sock])
-
-    '''
-    def sign_on(self, sock, label, addr):
-        self.sign_off(label)
-        self.peers_by_sock[sock] = label
-        self.labels[label] = addr
-
-    def sign_off(self, label):
-        if label not in self.labels: return
-        del self.peers_by_sock.inverse[label]
-        del self.labels[label]
-    '''
 

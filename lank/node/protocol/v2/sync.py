@@ -44,6 +44,10 @@ class NodeOn(Nonced, Timestamped, Identified):
         return cls(timestamp, uuid, synced, nonce)
 
 
+class LabelNotFound(Labeled):
+    pass
+
+
 class Signed(Autographed, Identified, Labeled, Timestamped):
     NAME_SIZE = 1 # bytes
     KEY_SIZE_SIZE = 2 # bytes

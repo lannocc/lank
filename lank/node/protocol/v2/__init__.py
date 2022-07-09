@@ -46,6 +46,10 @@ class Handler(Base):
         21: SignatureFailure,
         22: PeerOn,
         23: PeerAlreadyConnected,
+        24: ListLabels,
+        25: LabelsList,
+        26: LabelInterest,
+        27: LabelIgnore,
     })
 
     def client(self, master):
@@ -159,29 +163,19 @@ class Handler(Base):
                     reply = self.get_registration(master, msg)
 
                 elif isinstance(msg, Signed):
-                    if not self.node_uuid:
-                        reply = NodesOnly()
-
-                    else:
-                        reply = self.signed(master, msg)
+                    reply = self.signed(master, msg)
 
                 elif isinstance(msg, PeerOn):
                     reply = self.peer_on(master, msg)
 
-                #elif isinstance(msg, SignOn):
-                #    master.sign_on(self.sock, msg.label, self.addr)
+                elif isinstance(msg, ListLabels):
+                    reply = self.list_labels(master, msg)
 
-                #elif isinstance(msg, SignOff):
-                #    master.sign_off(msg.label)
+                elif isinstance(msg, LabelInterest):
+                    reply = self.label_interest(master, msg)
 
-                #elif isinstance(msg, LabelFind):
-                #    if msg.label in master.labels:
-                #        host = master.labels[msg.label][0]
-                #        port = master.labels[msg.label][1]
-                #        reply = LabelInfo(msg.label, host, port)
-
-                #    else:
-                #        reply = LabelNone(msg.label)
+                elif isinstance(msg, LabelIgnore):
+                    reply = self.label_ignore(master, msg)
 
                 else:
                     raise ValueError('unhandled message')
@@ -411,6 +405,9 @@ class Handler(Base):
     def signed(self, master, msg):
         assert isinstance(msg, Signed)
 
+        if not self.node_uuid:
+            return NodesOnly()
+
         if msg.uuid in master.signed_recently:
             return None
 
@@ -596,4 +593,19 @@ class Handler(Base):
 
         master.broadcast_nodes(reply, skip=self)
         return reply
+
+    def list_labels(self, master, msg):
+        assert isinstance(msg, ListLabels)
+
+        return LabelsList(master.labels_by_id.values())
+
+    def label_interest(self, master, msg):
+        assert isinstance(msg, LabelInterest)
+
+        master.add_label_interest(msg.label, self)
+
+    def label_ignore(self, master, msg):
+        assert isinstance(msg, LabelIgnore)
+
+        master.remove_label_interest(msg.label, self)
 
