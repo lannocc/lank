@@ -1,6 +1,8 @@
 Copyright (C) 2022 LANNOCC (Shawn A. Wilson)
 @%@~LICENSE:MIT~@%@
 
+saw_070922_3 - Add alias option for peer sign-on.
+
 saw_070922_2 - Remove Python-3.8 syntax magic so we can run on 3.7 (raspbian).
 
 saw_070922_1 - Move database "name" constants into their own file.

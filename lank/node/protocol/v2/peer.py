@@ -6,14 +6,17 @@ from uuid import uuid4
 class PeerOn(Autographed, Identified, Labeled):
     HOST_SIZE_SIZE = 1 # bytes
     PORT_SIZE = 2 # bytes
+    ALIAS_SIZE_SIZE = 1 # bytes
 
-    def __init__(self, version, label, host, port, signature=None, uuid=None):
+    def __init__(self, version, label, host, port, alias=None, signature=None,
+                 uuid=None):
         Autographed.__init__(self, version, signature)
         if not uuid: uuid = uuid4()
         Identified.__init__(self, uuid)
         Labeled.__init__(self, label)
         self.host = host
         self.port = port
+        self.alias = alias
 
     def _str_(self):
         return ', '.join([
@@ -22,6 +25,7 @@ class PeerOn(Autographed, Identified, Labeled):
             Labeled._str_(self),
             f'host={self.host}',
             f'port={self.port}',
+            f'alias={self.alias}',
         ])
 
     def to_bytes(self, handler):
@@ -38,7 +42,14 @@ class PeerOn(Autographed, Identified, Labeled):
         assert port > 0 and port < 256**self.PORT_SIZE
         port = port.to_bytes(self.PORT_SIZE, handler.BYTE_ORDER)
 
-        return autograph + uuid + label + host_size + host + port
+        alias = self.alias.encode(handler.ENCODING) if self.alias else b''
+        alias_size = len(alias)
+        assert alias_size < 256**self.ALIAS_SIZE_SIZE
+        alias_size = alias_size.to_bytes(self.ALIAS_SIZE_SIZE,
+                                         handler.BYTE_ORDER)
+
+        return autograph + uuid + label + host_size + host + port \
+            + alias_size + alias
 
     @classmethod
     def recv(cls, handler):
@@ -65,18 +76,26 @@ class PeerOn(Autographed, Identified, Labeled):
         if port is None: return None
         port = int.from_bytes(port, handler.BYTE_ORDER)
 
-        return cls(ver, label, host, port, sig, uuid)
+        size = handler.recv_bytes(cls.ALIAS_SIZE_SIZE)
+        if size is None: return None
+        size = int.from_bytes(size, handler.BYTE_ORDER)
+        alias = handler.recv_bytes(size)
+        if alias is None: return None
+        alias = str(alias, handler.ENCODING) if alias else None
+
+        return cls(ver, label, host, port, alias, sig, uuid)
 
     def to_sign(self, crypto):
         return self._to_sign_(crypto, self.uuid, self.label, self.host,
-                              self.port)
+                              self.port, self.alias)
 
     @classmethod
-    def _to_sign_(cls, crypto, uuid, label, host, port):
+    def _to_sign_(cls, crypto, uuid, label, host, port, alias):
         return b'\xFF' + uuid.bytes + b'\x00' \
             + label.encode(crypto.ENCODING) + b'\x00' \
             + host.encode(crypto.ENCODING) + b'\x00' \
-            + f'{port}'.encode(crypto.ENCODING) + b'\xFF'
+            + f'{port}'.encode(crypto.ENCODING) + b'\xFF' \
+            + ((alias.encode(crypto.ENCODING) + b'\x42') if alias else b'')
 
 
 class ListLabels(Message):

@@ -469,8 +469,15 @@ class Handler(Base):
             pub_key = crypto.load_public_key(
                 signed['address'].encode(crypto.ENCODING))
             host = msg.address[:msg.address.index(':')]
-            port = int(msg.address[msg.address.index(':')+1:])
-            data = PeerOn._to_sign_(crypto, msg.uuid, msg.label, host, port)
+            port = msg.address[msg.address.index(':')+1:]
+            if ':' in port:
+                port = port[:port.index(':')]
+                alias = port[port.index(':')+1:]
+            else:
+                alias = None
+            port = int(port)
+            data = PeerOn._to_sign_(crypto, msg.uuid, msg.label, host, port,
+                                    alias)
 
             if not crypto.verify(pub_key, data, msg.signature):
                 return SignatureFailure(msg.uuid)
@@ -572,6 +579,7 @@ class Handler(Base):
 
         assert ':' not in self.addr[0]
         key = f'{self.addr[0]}:{self.addr[1]}'
+        if msg.alias: key += f':{msg.alias}'
 
         assert ':' not in msg.host
         addr = f'{msg.host}:{msg.port}'
