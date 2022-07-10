@@ -29,7 +29,7 @@ def run():
             'console_scripts': [
                 'lank=lank.__main__:run',
                 'lank-node=lank.node.__main__:run',
-                'lank-peer=lank.peer.__main__:run',
+                #'lank-peer=lank.peer.__main__:run',
             ],
         },
     )

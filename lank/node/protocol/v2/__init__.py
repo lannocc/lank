@@ -49,6 +49,8 @@ class Handler(Base):
         25: LabelsList,
         26: LabelInterest,
         27: LabelIgnore,
+        28: GetHistory,
+        29: History,
     })
 
     def client(self, master):
@@ -181,6 +183,9 @@ class Handler(Base):
 
                 elif isinstance(msg, LabelIgnore):
                     reply = self.label_ignore(master, msg)
+
+                elif isinstance(msg, GetHistory):
+                    reply = self.get_history(master, msg)
 
                 else:
                     raise ValueError('unhandled message')
@@ -625,4 +630,39 @@ class Handler(Base):
         assert isinstance(msg, LabelIgnore)
 
         master.remove_label_interest(msg.label, self)
+
+    def get_history(self, master, msg):
+        assert isinstance(msg, GetHistory)
+
+        try:
+            label_id = master.labels_by_id.inverse[msg.label]
+
+        except KeyError:
+            return LabelNotFound(msg.label)
+
+        signed_list = master.ldb.find_signed_by_label(
+            label_id, msg.start + msg.count)
+
+        items = [ ]
+        idx = 0
+        end = msg.start + msg.count - 1
+
+        for signed in signed_list:
+            if idx >= msg.start:
+                items.append(Signed(
+                    signed['version'],
+                    UUID(signed['uuid']),
+                    msg.label,
+                    signed['name'],
+                    signed['key'],
+                    signed['address'],
+                    signed['signature'],
+                    UUID(signed['node_uuid']),
+                    signed['created']
+                ))
+
+            idx += 1
+            if idx > end: break
+
+        return History(msg.label, msg.start, items)
 

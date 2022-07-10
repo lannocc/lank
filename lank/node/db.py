@@ -345,6 +345,21 @@ def get_signed_by_uuid(uuid):
 
     return cur_fetch()
 
+def find_signed_by_label(label, limit=None):
+    sql = '''
+        SELECT *
+        FROM signed
+        WHERE label = ?
+        ORDER BY created DESC
+    '''
+
+    if limit:
+        sql += f'LIMIT {limit}'
+
+    cur.execute(sql, (label,))
+
+    return cur_fetchall()
+
 def find_signed_by_label_name(label, name, limit=None):
     sql = '''
         SELECT *

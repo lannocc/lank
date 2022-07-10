@@ -27,7 +27,7 @@ def help(args):
 
 
 def run(args):
-    from . import Server
+    from . import Master
     from ..crypto import get_handler
 
     crypto = get_handler()
@@ -37,7 +37,7 @@ def run(args):
     priv_key = crypto.get_private_key(label)
 
     print('Starting server process...')
-    server = Server(crypto, priv_key)
+    server = Master(crypto, priv_key)
     print(f'   listening on port {server.port}')
     server.run()
 

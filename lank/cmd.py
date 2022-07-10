@@ -44,10 +44,12 @@ def node(args):
     node_main(args)
 
 
+'''
 def peer(args):
     from .peer.cmd import main as peer_main
 
     peer_main(args)
+'''
 
 
 SET = {
@@ -59,7 +61,7 @@ SET = {
         'register a new label'),
     'node': (node,
         'node commands'),
-    'peer': (peer,
-        'peer commands'),
+    #'peer': (peer,
+    #    'peer commands'),
 }
 
