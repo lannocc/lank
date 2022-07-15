@@ -19,3 +19,7 @@ pip install lank
 
 Once installed, simply run the `lank` command from any terminal.
 
+## Author
+
+Created by Shawn A. Wilson [lannocc@yahoo.com] aka LANNOCC.
+

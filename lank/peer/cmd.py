@@ -29,17 +29,51 @@ def help(args):
 def run(args):
     from . import Master
     from ..crypto import get_handler
+    import lank.node.db as ldb
 
-    crypto = get_handler()
+    try:
+        crypto = get_handler()
 
-    label = 'anonymous'
-    print(f'Loading private key for "{label}"...')
-    priv_key = crypto.get_private_key(label)
+        label = 'anonymous'
+        print(f'Loading private key for "{label}"...')
 
-    print('Starting server process...')
-    server = Master(crypto, priv_key)
-    print(f'   listening on port {server.port}')
-    server.run()
+        label = ldb.get_label_by_name(label)
+        assert label
+        label = label['id']
+
+        registration = ldb.find_signed_by_label_name(label, ldb.NAME_REGISTER,
+                                                     limit=1)
+        assert registration
+        assert registration[0]
+        registration = registration[0]
+        key_pair_pem = registration['address'].encode(crypto.ENCODING)
+
+        priv_key = crypto.load_private_key(key_pair_pem)
+
+        print('Starting server process...')
+        server = Master(crypto, priv_key)
+
+        def get_public_key(crypto, label):
+            label = ldb.get_label_by_name(label)
+            assert label
+            label = label['id']
+
+            registration = ldb.find_signed_by_label_name(label,
+                                                         ldb.NAME_REGISTER,
+                                                         limit=1)
+            assert registration
+            assert registration[0]
+            registration = registration[0]
+            key_pair_pem = registration['address'].encode(crypto.ENCODING)
+
+            return crypto.load_public_key(key_pair_pem)
+
+        server.get_public_key = get_public_key
+        print(f'   listening on port {server.port}')
+        server.run()
+
+    finally:
+        ldb.close()
 
 
 def test(args):

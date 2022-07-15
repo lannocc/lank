@@ -28,10 +28,11 @@ class Handler(Base):
         self.label = None
 
     def server(self, master):
+        #self.print('here we go')
         #while msg := self.recv():
-        msg = self.recv()
+        msg = self.recv(master)
         while msg:
-            print(f'     {self.addr} -> {msg}')
+            self.print(f'S    {self.addr} -> {msg}')
             reply = None
 
             if isinstance(msg, Ping):
@@ -39,16 +40,16 @@ class Handler(Base):
 
             elif isinstance(msg, Text):
                 #reply = Text('got your message')
-                pass
+                master.on_text(msg, self)
 
             else:
                 raise ValueError(f'unhandled message: {msg}')
 
             if reply:
-                print(f'     {self.addr} <- {reply}')
+                self.print(f'S    {self.addr} <- {reply}')
                 self.send(reply)
 
-            msg = self.recv()
+            msg = self.recv(master)
 
     def send(self, msg):
         id_bytes = self.get_id_bytes(msg)
@@ -64,9 +65,12 @@ class Handler(Base):
 
         self.sock.sendall(sig + size_bytes + data)
 
-    def recv(self):
+    def recv(self, master):
+        #self.print('receiving')
         sig = self.recv_bytes(self.CRYPTO_SIG_SIZE)
-        if not sig: return None
+        if not sig:
+            #self.print('recv: no sig')
+            return None
         sig = bytes(sig)
 
         crypto_size = self.recv_bytes(self.CRYPTO_SIZE_SIZE)
@@ -94,17 +98,21 @@ class Handler(Base):
         msg = msg.from_bytes(self, data)
 
         if isinstance(msg, Ping):
+            #self.print('got ping')
             if msg.label != self.label:
-                self.pub_key = self.crypto.get_public_key(msg.label)
+                self.pub_key = master.get_public_key(self.crypto, msg.label)
 
                 if not self.pub_key:
                     raise ValueError(f'no key on file for label: {msg.label}')
 
                 self.label = msg.label
-                print(f'     {self.addr} is {self.label}')
+                self.print(f'S    {self.addr} is {self.label}')
 
             if not self.crypto.verify(self.pub_key, verify[0], verify[1]):
                 raise ValueError(f'signature verification failed')
 
         return msg
+
+    def print(self, txt):
+        print(txt)
 

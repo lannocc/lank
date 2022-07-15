@@ -1,5 +1,7 @@
-Copyright (C) 2022 LANNOCC (Shawn A. Wilson)
+Copyright (C) 2022 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
+
+saw_071422_1 - Begin to support peer text messaging.
 
 saw_071022_1 - Remove command-line peer commands. Add GetHistory/History.
 
