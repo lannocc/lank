@@ -107,6 +107,7 @@ class Handler(Base):
 
                 self.label = msg.label
                 self.print(f'S    {self.addr} is {self.label}')
+                master.on_peered(self)
 
             if not self.crypto.verify(self.pub_key, verify[0], verify[1]):
                 raise ValueError(f'signature verification failed')
