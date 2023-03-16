@@ -8,6 +8,7 @@ from ntplib import NTPClient
 
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
+import socket
 
 
 DEFAULT_PORT = 42024
@@ -17,13 +18,7 @@ HELLO_TIMEOUT = 9 # seconds
 
 GENERAL_TIMEOUT = KEEPALIVE * 2 # seconds
 
-NODES = [ # FIXME -- this is temporary (put in database?)
-    ('localhost', 42024),
-    #('localhost', 42124),
-    ('72.202.195.53', 42024),
-    ('ruckusist.com', 42024),
-]
-
+NODES = 'node.lank.im' # initial nodes will be gathered from DNS
 NODES_MIN = 3
 NODES_MAX = 9
 NODES_WAIT = 3 * 60 # seconds
@@ -78,7 +73,11 @@ class Master:
                 # FIXME: limit spawning to NODES_MAX - len(self.nodes)
                 #        and then wait
 
-                for addr in NODES:
+                nodes = socket.getaddrinfo(NODES, 0, type=socket.SOCK_STREAM)
+
+                for node in nodes:
+                    addr = node[4][0]
+
                     if len(self.nodes_by_uuid) >= NODES_MAX:
                         break
                     if addr in self.nodes_client:
@@ -96,7 +95,8 @@ class Master:
         nodes = len(self.nodes_by_uuid)
         peers = len(self.peers_by_label)
         time = self.now().isoformat()
-        print(f'** STATUS ** nodes={nodes} ** peers={peers} ** time={time}')
+        print(f'>>>[STATUS]>>> ** NODES={nodes} ** PEERS={peers} ** TIME={time}'\
+            + ' ** <<<[STATUS]<<<')
 
     def broadcast_nodes(self, msg, skip=None):
         print(f'B    (NODES) <- {msg}')

@@ -10,29 +10,33 @@ from uuid import uuid4
 
 
 class Interactive:
-    def __init__(self):
+    def __init__(self, client=None):
+        if client is None:
+            client = Client()
+        self.client = client
+
         self.crypto = crypto()
-        print(f' - crypto handler v{self.crypto.VERSION}')
+        self.print(f' - crypto handler v{self.crypto.VERSION}')
 
     def run(self):
-        client = Client()
+        client = self.client
         client.start()
 
         try:
             client.ready.wait()
 
             if not client.go:
-                print('ABORTED: unable to connect to node')
+                self.print('ABORTED: unable to connect to node')
                 return
 
-            print()
-            print('Ready to create/update a label with a new key pair.')
-            print()
+            self.print()
+            self.print('Ready to create/update a label with a new key pair.')
+            self.print()
 
-            label = input('Label: ')
+            label = self.input('Label: ')
             if label: label = label.strip()
             if not label or not client.go:
-                print('ABORTED')
+                self.print('ABORTED')
                 return
 
             uuid = uuid4()
@@ -40,30 +44,30 @@ class Interactive:
             exists_priv_key = None
 
             if exists is None:
-                print('ABORTED')
+                self.print('ABORTED')
                 return
 
             elif not exists:
-                password = getpass('Password: ')
+                password = self.getpass('Password: ')
 
             else:
-                print('   A label with that name already exists.')
+                self.print('   A label with that name already exists.')
                 uuid = exists.uuid
 
                 try:
                     priv_key = self.crypto.load_private_key(exists.key_pair_pem)
 
-                    print('   ' \
+                    self.print('   ' \
                         + 'ERROR: The existing key is OPEN and must remain so.')
-                    print('ABORTED')
+                    self.print('ABORTED')
                     return
 
                 except TypeError: # (needs a password)
                     pass # this is expected
 
-                exists_password = getpass('Existing Password: ')
+                exists_password = self.getpass('Existing Password: ')
                 if not exists_password:
-                    print('ABORTED')
+                    self.print('ABORTED')
                     return
 
                 try:
@@ -72,15 +76,15 @@ class Interactive:
 
                 except ValueError as e:
                     if e.args: e = ' | '.join(e.args)
-                    print(f'   ERROR: {e}')
-                    print('ABORTED')
+                    self.print(f'   ERROR: {e}')
+                    self.print('ABORTED')
                     return
 
                 exists_priv_key = priv_key
-                password = getpass('New Password: ')
+                password = self.getpass('New Password: ')
 
                 if password == exists_password:
-                    print('   ' \
+                    self.print('   ' \
                         + 'WARNING: New password is same as the old password.')
 
             if password:
@@ -88,43 +92,42 @@ class Interactive:
                 if label.lower() in password.lower():
                     results.append('Contains Label Name')
                 if results:
-                    print('   WARNING: You have entered a WEAK PASSWORD.')
-                    print('      ' \
+                    self.print('   WARNING: You have entered a WEAK PASSWORD.')
+                    self.print('      ' \
                         + 'This makes it VERY LIKELY somebody will STEAL it.')
-                    print('      The following tests FAILED:')
+                    self.print('      The following tests FAILED:')
                     for result in results:
-                        print(f'         - {result}')
-                    print('      Proceed with CAUTION!')
+                        self.print(f'         - {result}')
+                    self.print('      Proceed with CAUTION!')
 
-                confirm = getpass('Confirm Password: ')
+                confirm = self.getpass('Confirm Password: ')
                 if confirm != password:
-                    print('ABORTED (passwords do not match)')
+                    self.print('ABORTED (passwords do not match)')
                     return
 
             else:
-                print('   WARNING: Empty password creates an OPEN key pair.')
-                print('      ' \
+                self.print('   ' \
+                    + 'WARNING: Empty password creates an OPEN key pair.')
+                self.print('      ' \
                     + 'This means EVERYBODY is allowed to control the label')
-                print('      ' \
+                self.print('      ' \
                     + 'FOREVER and CANNOT BE UNDONE. Proceed with CAUTION!')
 
-                agree = input('Type AGREE to continue: ')
+                agree = self.input('Type AGREE to continue: ')
                 if agree != 'AGREE':
-                    print('ABORTED')
+                    self.print('ABORTED')
                     return
 
-            print()
-            print('Generating key pair...', end='')
-            sys.stdout.flush()
+            self.print()
+            self.print('Generating key pair...', end='')
             keys = self.crypto.make_keys(password)
-            print(' [done]')
+            self.print(' [done]')
 
             priv_key = keys[0]
             priv_key_pem = keys[1]
             pub_key_pem = keys[2]
 
-            print('Creating signature...', end='')
-            sys.stdout.flush()
+            self.print('Creating signature...', end='')
             if not exists:
                 time_nonce = self.crypto.make_time_nonce()
                 msg = self.crypto.get_register_message(label, time_nonce)
@@ -136,29 +139,38 @@ class Interactive:
                     exists.uuid,
                     priv_key_pem + pub_key_pem)
                 signature = self.crypto.sign(exists_priv_key, msg)
-            print(' [done]')
+            self.print(' [done]')
 
-            print('Sanity check...', end='')
-            sys.stdout.flush()
+            self.print('Sanity check...', end='')
             if not exists:
                 assert self.crypto.verify(priv_key.public_key(), msg, signature)
             else:
                 assert self.crypto.verify(exists_priv_key.public_key(), msg,
                                           signature)
-            print(' [done]')
+            self.print(' [done]')
 
-            print('Transmitting...', end='')
-            sys.stdout.flush()
+            self.print('Transmitting...', end='')
             if client.register_label(uuid, label, priv_key_pem, pub_key_pem,
                     signature, self.crypto.VERSION, time_nonce):
-                print(' [SUCCESS]')
+                self.print(' [SUCCESS]')
 
             else:
-                print(' [FAIL]')
+                self.print(' [FAIL]')
 
         finally:
             client.stop()
             client.join()
+
+    def print(self, txt='', end='\n'):
+        print(txt, end)
+        if end == '':
+            sys.stdout.flush()
+
+    def input(self, label):
+        return input(label)
+
+    def getpass(self, label):
+        return getpass(label)
 
 
 class Client(Thread):
