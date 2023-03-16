@@ -83,7 +83,7 @@ class Master:
                     if addr in self.nodes_client:
                         continue
 
-                    self.pool.spawn(self.client, addr)
+                    self.pool.spawn(self.client, (addr, DEFAULT_PORT))
 
             wait(timeout=NODES_WAIT)
             self.status()
