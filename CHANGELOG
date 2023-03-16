@@ -1,7 +1,9 @@
 Copyright (C) 2022-2023 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
 
-saw_031622_1 - Get initial nodes by querying DNS for node.lank.im.
+saw_031623_2 - Fix rogue socket import (gevent FAIL).
+
+saw_031623_1 - Get initial nodes by querying DNS for node.lank.im.
 
 saw_072422_1 - Add call to master.on_peered() in peer handler.
 

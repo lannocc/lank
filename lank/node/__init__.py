@@ -8,7 +8,6 @@ from ntplib import NTPClient
 
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
-import socket
 
 
 DEFAULT_PORT = 42024
