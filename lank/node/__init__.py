@@ -76,14 +76,14 @@ class Master:
                 nodes = socket.getaddrinfo(NODES, 0, type=socket.SOCK_STREAM)
 
                 for node in nodes:
-                    addr = node[4][0]
+                    addr = (node[4][0], DEFAULT_PORT)
 
                     if len(self.nodes_by_uuid) >= NODES_MAX:
                         break
                     if addr in self.nodes_client:
                         continue
 
-                    self.pool.spawn(self.client, (addr, DEFAULT_PORT))
+                    self.pool.spawn(self.client, addr)
 
             wait(timeout=NODES_WAIT)
             self.status()
