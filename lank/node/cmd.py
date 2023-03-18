@@ -1,3 +1,4 @@
+from sys import stdout
 
 
 def main(args):
@@ -9,11 +10,14 @@ def main(args):
     if cmd in SET:
         cmd = SET[cmd]
         print(cmd[1])
+        stdout.flush()
         cmd[0](args)
 
     else:
         print(f'unknown command: {cmd}')
         print('Try `lank node help` for a list of commands.')
+
+    stdout.flush()
 
 
 def help(args):

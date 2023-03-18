@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from sys import stdout
 
 
 VERSION = 2
@@ -62,20 +63,24 @@ class Handler(ABC):
 
     def c_send(self, msg):
         print(f'C    {self.addr} <- {msg}')
+        stdout.flush()
         self.send(msg)
 
     def s_send(self, msg):
         print(f'S    {self.addr} <- {msg}')
+        stdout.flush()
         self.send(msg)
 
     def c_recv(self):
         msg = self.recv()
         print(f'C    {self.addr} -> {msg}')
+        stdout.flush()
         return msg
 
     def s_recv(self):
         msg = self.recv()
         print(f'S    {self.addr} -> {msg}')
+        stdout.flush()
         return msg
 
     def recv_bytes(self, size):

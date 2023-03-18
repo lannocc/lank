@@ -1,6 +1,8 @@
 Copyright (C) 2022-2023 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
 
+saw_031723_1 - Flush output after printing (helps redirection to log files).
+
 saw_031623_2 - Fix rogue socket import (gevent FAIL).
 
 saw_031623_1 - Get initial nodes by querying DNS for node.lank.im.

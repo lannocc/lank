@@ -1,3 +1,4 @@
+from .. import __version__
 from .protocol import get_handler, HELLO, KEEPALIVE, VERSION
 
 from gevent import socket, wait #, spawn
@@ -8,6 +9,7 @@ from ntplib import NTPClient
 
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
+from sys import stdout
 
 
 DEFAULT_PORT = 42024
@@ -23,6 +25,13 @@ NODES_MAX = 9
 NODES_WAIT = 3 * 60 # seconds
 
 NTP = 'pool.ntp.org'
+
+
+print_orig = print
+def print_flush(*args, **kwargs):
+    print_orig(*args, **kwargs)
+    stdout.flush()
+print = print_flush
 
 
 class Master:
@@ -94,8 +103,8 @@ class Master:
         nodes = len(self.nodes_by_uuid)
         peers = len(self.peers_by_label)
         time = self.now().isoformat()
-        print(f'>>>[STATUS]>>> ** NODES={nodes} ** PEERS={peers} ** TIME={time}'\
-            + ' ** <<<[STATUS]<<<')
+        print(f'>>>[STATUS]>>> v{__version__} ** NODES={nodes}' \
+            + f' ** PEERS={peers} ** TIME={time} ** <<<[STATUS]<<<')
 
     def broadcast_nodes(self, msg, skip=None):
         print(f'B    (NODES) <- {msg}')
