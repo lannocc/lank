@@ -10,6 +10,7 @@ from ntplib import NTPClient
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
 from sys import stdout
+import random
 
 
 DEFAULT_PORT = 42024
@@ -32,6 +33,13 @@ def print_flush(*args, **kwargs):
     print_orig(*args, **kwargs)
     stdout.flush()
 print = print_flush
+
+
+def get_nodes():
+    nodes = socket.getaddrinfo(NODES, 0, type=socket.SOCK_STREAM)
+    nodes = [ (node[4][0], DEFAULT_PORT) for node in nodes ]
+    random.shuffle(nodes)
+    return nodes
 
 
 class Master:
@@ -81,11 +89,7 @@ class Master:
                 # FIXME: limit spawning to NODES_MAX - len(self.nodes)
                 #        and then wait
 
-                nodes = socket.getaddrinfo(NODES, 0, type=socket.SOCK_STREAM)
-
-                for node in nodes:
-                    addr = (node[4][0], DEFAULT_PORT)
-
+                for addr in get_nodes():
                     if len(self.nodes_by_uuid) >= NODES_MAX:
                         break
                     if addr in self.nodes_client:

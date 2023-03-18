@@ -44,6 +44,12 @@ def node(args):
     node_main(args)
 
 
+def gateway(args):
+    from .gateway.cmd import main as gateway_main
+
+    gateway_main(args)
+
+
 '''
 def peer(args):
     from .peer.cmd import main as peer_main
@@ -61,6 +67,8 @@ SET = {
         'register a new label'),
     'node': (node,
         'node commands'),
+    'gateway': (gateway,
+        'gateway commands'),
     #'peer': (peer,
     #    'peer commands'),
 }

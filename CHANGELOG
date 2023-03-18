@@ -1,6 +1,8 @@
 Copyright (C) 2022-2023 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
 
+saw_031823_1 - Begin to implement gateway operation.
+
 saw_031723_1 - Flush output after printing (helps redirection to log files).
 
 saw_031623_2 - Fix rogue socket import (gevent FAIL).

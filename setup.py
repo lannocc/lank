@@ -24,6 +24,8 @@ def run():
             'gevent',
             'ntplib',
             'password-strength',
+            'requests',
+            'websockets',
         ],
         entry_points = {
             'console_scripts': [
