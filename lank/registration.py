@@ -1,5 +1,5 @@
 from .crypto import get_handler as crypto
-from .node import NODES, HELLO_TIMEOUT, GENERAL_TIMEOUT, KEEPALIVE
+from .node import get_nodes, HELLO_TIMEOUT, GENERAL_TIMEOUT, KEEPALIVE
 from .node.protocol.v2 import *
 
 from threading import Thread, Event
@@ -162,7 +162,7 @@ class Interactive:
             client.join()
 
     def print(self, txt='', end='\n'):
-        print(txt, end)
+        print(txt, end=end)
         if end == '':
             sys.stdout.flush()
 
@@ -239,7 +239,7 @@ class Client(Thread):
         print(' - connecting to node:')
         node = None
 
-        for addr in NODES:
+        for addr in get_nodes():
             print(f'   * trying {addr}... ', end='')
             sys.stdout.flush()
 
