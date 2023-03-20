@@ -4,33 +4,37 @@ import websockets
 
 import asyncio
 import json
-import threading
-import sys
 
 
 PORT = 42824
 VERSION = 0
 PREAMBLE = f'::LANK:{VERSION}::'
-MAX_SIZE = 9_018_081 # max message size (bytes)
+MAX_SIZE = 9_018_081 # max websocket message size (bytes)
 
 
 class Master:
-    def __init__(self):
-        self.node = Node()
+    def __init__(self, printer=print):
+        self.print = printer
+        self.node = Node(printer)
 
     def run(self):
-        self.node.start()
+        def exception(loop, context):
+            func = context.get('future').get_coro().__name__
+            msg = context.get('exception', context['message'])
+            name = type(msg).__name__
+            self.print(f'!!EE!! ({func}) {name} !! {msg}')
 
-        self.print(f' - websocket server running on port {PORT}')
-        try:
-            asyncio.run(self.server())
-        finally:
-            self.node.stop()
-            self.node.join()
+        async def main():
+            asyncio.get_running_loop().set_exception_handler(exception)
+            await self.main()
 
-    async def server(self):
+        asyncio.run(main())
+
+    async def main(self):
+        self.print(f' - websocket server listening port {PORT}')
         async with websockets.serve(self.handler, '', PORT, max_size=MAX_SIZE):
-            await asyncio.Future() # run forever
+            #await asyncio.Future() # run forever
+            await self.node.main()
 
     async def handler(self, websocket):
         self.print(f'got connection: {websocket}')
@@ -55,17 +59,17 @@ class Master:
                 await self.reply(websocket, self.node)
 
             elif etype == 'ListLabels':
-                labels = self.node.list_labels()
+                labels = await self.node.list_labels()
                 await self.reply(websocket, labels, 'labels')
 
             elif etype == 'GetRegistration':
                 label = event['label']
-                reg = self.node.get_registration(label)
+                reg = await self.node.get_registration(label)
                 await self.reply(websocket, reg, 'key_pair_pem')
 
             elif etype == 'GetHistory':
                 label = event['label']
-                history = self.node.get_history(label)
+                history = await self.node.get_history(label)
                 await self.reply(websocket, history, 'items')
 
             else:
@@ -82,13 +86,4 @@ class Master:
             except AttributeError as e:
                 txt += f'\n  !!!! {e}'
         await websocket.send(txt)
-
-    def print(self, msg, newline=True):
-        #if not self.verbose: return
-        thread = threading.current_thread().name
-        msg = f'[{thread}] {msg}'
-        if newline: print(msg)
-        else:
-            print(msg, end='')
-            sys.stdout.flush()
 

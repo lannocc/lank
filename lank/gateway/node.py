@@ -1,22 +1,19 @@
-from ..node import get_nodes, HELLO_TIMEOUT, GENERAL_TIMEOUT, KEEPALIVE
-from ..node.protocol.v2 import *
-#from ..crypto import get_handler as get_crypto
+from ..node import get_nodes
+from ..node.protocol import *
 
 from requests import get
 
-from threading import Thread, current_thread
-from queue import Queue, Empty
-#import janus
-import socket
-import sys
+import asyncio
+#from threading import Thread, current_thread
+#from queue import Queue, Empty
+#import socket
 
 
-class Client(Thread):
-    def __init__(self, verbose=True):
+class Client():
+    def __init__(self, printer=print):
         #def __init__(self, port, label, pwd, alias,
         #    on_error, on_connect, verbose=True):
-        super().__init__(name='node')
-        self.verbose = verbose
+        self.print = printer
 
         self.host = self.get_public_ip()
         #self.port = port
@@ -27,55 +24,125 @@ class Client(Thread):
         #self.on_connect = on_connect
 
         self.node = None
-        self.input = Queue()
-        self.output = Queue()
+        #self.input = Queue()
+        #self.output = Queue()
 
         self.ping = None
-        self.sign_on = False
-        self.labels_callback = None
-        self.history_callback = None
-        self.register_callback = None
+        #self.sign_on = False
+        #self.labels_callback = None
+        #self.history_callback = None
+        #self.register_callback = None
 
-        self.sender_thread = Thread(
-            name='node-sender', target=self.sender)
-        self.receiver_thread = Thread(
-            name='node-return', target=self.receiver)
+        #self.sender_thread = Thread(
+        #    name='node-sender', target=self.sender)
+        #self.receiver_thread = Thread(
+        #    name='node-return', target=self.receiver)
 
     def __str__(self):
         if not self.node:
             return 'no connection'
 
-        if not self.node.sock:
-            return 'no connection (sock)'
+        #if not self.node.sock:
+        #    return 'no connection (sock)'
 
-        return f'{self.node.sock.getpeername()}'
+        return f'{self.node.reader._transport.get_extra_info("peername")}'
 
     def run(self):
-        self.print(' - connecting to node:')
+        def exception(loop, context):
+            func = context.get('future').get_coro().__name__
+            msg = context.get('exception', context['message'])
+            name = type(msg).__name__
+            self.print(f'!!EE!! ({func}) {name} !! {msg}')
+
+        async def main():
+            asyncio.get_running_loop().set_exception_handler(exception)
+            await self.main()
+
+        asyncio.run(main())
+
+    async def main(self):
+        # FIXME: this needs to be smarter (keep a pool of active nodes?)
 
         for addr in get_nodes():
-            self.print(f'   * trying {addr}... ', False)
-
             try:
-                sock = socket.create_connection(addr, timeout=HELLO_TIMEOUT)
-                sock.settimeout(HELLO_TIMEOUT)
-                self.node = Handler(sock, addr)
-                self.node.hello()
-                self.node.sock.settimeout(GENERAL_TIMEOUT)
-                self.print('[READY]')
-                break
+                self.print(f'N+ connecting to {addr}')
+                host, port = addr
+
+                reader, writer = await asyncio.wait_for(
+                        asyncio.open_connection(host, port),
+                        timeout=HELLO_TIMEOUT)
+
+                try:
+                    handler = Handler(addr, reader, writer, printer=self.print)
+                    await handler.hello()
+
+                    try:
+                        self.node = handler
+
+                        while True:
+                            await asyncio.sleep(KEEPALIVE)
+
+                            ping = Ping()
+                            await self.send(ping)
+                            pong = await self.recv()
+
+                            if not pong:
+                                break
+
+                            if not isinstance(pong, Pong):
+                                raise ValueError('unhandled message')
+
+                            if pong.nonce != ping.nonce:
+                                raise ValueError('nonce mismatch')
+
+                        self.print(f'N- finished {addr}')
+
+                    except KeyError as e:
+                        self.print(f'N- terminated {addr} [DENIED: {e}]')
+                        #if 'NodeIsSelf' in str(e):
+                        #    self.nodes_client[addr] = False
+
+                    except ValueError as e:
+                        self.print(f'N- terminated {addr} [BAD MESSAGE: {e}]')
+
+                    except asyncio.TimeoutError:
+                        self.print(f'N- terminated {addr} [GENERAL TIMEOUT]')
+
+                    finally:
+                        self.node = None
+
+                except BrokenPipeError:
+                    self.print(f'N- closed {addr} [BROKEN PIPE]')
+
+                except ConnectionResetError:
+                    self.print(f'N- closed {addr} [CONNECTION RESET]')
+
+                except OSError:
+                    self.print(f'N- closed {addr} [GENERAL NETWORK ERROR]')
+
+                except asyncio.TimeoutError:
+                    self.print(f'N- terminated {addr} [HELLO TIMEOUT]')
+
+                finally:
+                    try:
+                        writer.close()
+                        await writer.wait_closed()
+
+                    except ConnectionResetError:
+                        pass
 
             except ConnectionRefusedError:
-                self.print(f'[REFUSED] {addr}')
-                self.node = None
+                self.print(f'N- closed {addr} [CONNECTION REFUSED]')
 
-            except socket.timeout:
-                self.print(f'[TIMEOUT] {addr}')
-                self.node = None
+            except asyncio.TimeoutError:
+                self.print(f'N- terminated {addr} [CONNECT TIMEOUT]')
+
+            except Exception as e:
+                name = type(e).__name__
+                self.print(f'N- terminated {addr} [ERROR: {name}] !! {e}')
+                raise e
 
         if not self.node: return
-        self.receiver_thread.start()
-        self.sender_thread.start()
 
         '''
         self.input.put_nowait(GetRegistration(self.label))
@@ -124,17 +191,28 @@ class Client(Thread):
         self.on_connect(msg.labels)
         '''
 
-    def list_labels(self):
-        self.input.put_nowait(ListLabels())
-        return self.output.get()
+    async def send(self, msg):
+        if not self.node: return
+        self.print(f'N    {self.node.addr} <- {msg}')
+        await self.node.send(msg)
 
-    def get_registration(self, label):
-        self.input.put_nowait(GetRegistration(label))
-        return self.output.get()
+    async def recv(self):
+        if not self.node: return None
+        msg = await self.node.recv()
+        self.print(f'N    {self.node.addr} -> {msg}')
+        return msg
 
-    def get_history(self, label):
-        self.input.put_nowait(GetHistory(label))
-        return self.output.get()
+    async def list_labels(self):
+        await self.send(ListLabels())
+        return await self.recv()
+
+    async def get_registration(self, label):
+        await self.send(GetRegistration(label))
+        return await self.recv()
+
+    async def get_history(self, label):
+        await self.send(GetHistory(label))
+        return await self.recv()
 
     '''
     def interest(self, label, notify=True):
@@ -170,7 +248,6 @@ class Client(Thread):
             callback(registration, history)
         self.history_callback = history_callback
         self.input.put_nowait(GetHistory(registration.label))
-    '''
 
     def stop(self):
         if not self.node: return
@@ -209,11 +286,6 @@ class Client(Thread):
         finally:
             self.stop()
 
-    def send(self, msg):
-        if not self.node: return
-        self.print(f'N    {self.node.addr} <- {msg}')
-        self.node.send(msg)
-
     def receiver(self):
         try:
             #while msg := self.recv():
@@ -247,29 +319,15 @@ class Client(Thread):
         finally:
             self.stop()
 
-    def recv(self):
-        if not self.node: return None
-        msg = self.node.recv()
-        if msg: self.print(f'N    {self.node.addr} -> {msg}')
-        return msg
+    def error(self, e):
+        if not self.node: return
+        self.print(f'** ERROR ** {e}')
+        #self.on_error(e)
+        self.stop()
+    '''
 
     def get_public_ip(self):
         ip = get('http://api.ipify.org').content.decode('utf-8')
         self.print(f' - our public IP address: {ip}')
         return ip
-
-    def print(self, msg, newline=True):
-        if not self.verbose: return
-        thread = current_thread().name
-        msg = f'[{thread}] {msg}'
-        if newline: print(msg)
-        else:
-            print(msg, end='')
-            sys.stdout.flush()
-
-    def error(self, e):
-        if not self.node: return
-        print(f'** ERROR ** {e}')
-        #self.on_error(e)
-        self.stop()
 

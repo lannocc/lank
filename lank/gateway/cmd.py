@@ -1,3 +1,6 @@
+from ..util import print_flush
+
+print = print_flush
 
 
 def main(args):
@@ -30,7 +33,7 @@ def run(args):
     from . import Master
 
     print('Starting gateway process...')
-    gateway = Master()
+    gateway = Master(printer=print)
     gateway.run()
 
 
