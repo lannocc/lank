@@ -1,4 +1,6 @@
-from sys import stdout
+from ..util import print_flush
+
+print = print_flush
 
 
 def main(args):
@@ -10,14 +12,11 @@ def main(args):
     if cmd in SET:
         cmd = SET[cmd]
         print(cmd[1])
-        stdout.flush()
         cmd[0](args)
 
     else:
         print(f'unknown command: {cmd}')
         print('Try `lank node help` for a list of commands.')
-
-    stdout.flush()
 
 
 def help(args):
@@ -36,7 +35,7 @@ def run(args):
 
     try:
         print('Starting node process...')
-        node = Master()
+        node = Master(printer=print)
         node.run()
 
     finally:
@@ -49,7 +48,7 @@ def run2(args):
 
     try:
         print('Starting node process...')
-        node = Master(42124)
+        node = Master(42124, printer=print)
         node.run()
 
     finally:

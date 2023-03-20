@@ -1,3 +1,6 @@
+from .util import print_flush
+
+print = print_flush
 
 
 def main(args):

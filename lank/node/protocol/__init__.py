@@ -271,10 +271,12 @@ class Handler:
         #FIXME
         #if size > self.BUFFER_SIZE:
         #    raise ValueError(f'request to read more than buffer allows: {size}')
-        return await asyncio.wait_for(
-                self.reader.readexactly(size), timeout=GENERAL_TIMEOUT)
+        try:
+            return await asyncio.wait_for(
+                    self.reader.readexactly(size), timeout=GENERAL_TIMEOUT)
 
-        # FIXME try/except the above and return None on insufficient data
+        except asyncio.IncompleteReadError:
+            return None
 
     def get_id_bytes(self, msg):
         try:
