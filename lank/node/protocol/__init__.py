@@ -3,6 +3,7 @@ from .deny import *
 from .sync import *
 from .register import *
 from .peer import *
+from lank.crypto import get_handler as get_crypto
 
 from bidict import bidict
 
@@ -250,7 +251,8 @@ class Handler:
         return msg
 
     async def c_recv(self):
-        msg = await self.recv()
+        msg = await asyncio.wait_for(
+                self.recv(), timeout=KEEPALIVE)
         self.print(f'C    {self.addr} -> {msg}')
         return msg
 
@@ -267,13 +269,13 @@ class Handler:
         msg = self.get_msg_type(id_bytes)
         return await msg.recv(self)
 
-    async def recv_bytes(self, size):
+    async def recv_bytes(self, size, timeout=GENERAL_TIMEOUT):
         #FIXME
         #if size > self.BUFFER_SIZE:
         #    raise ValueError(f'request to read more than buffer allows: {size}')
         try:
             return await asyncio.wait_for(
-                    self.reader.readexactly(size), timeout=GENERAL_TIMEOUT)
+                    self.reader.readexactly(size), timeout=timeout)
 
         except asyncio.IncompleteReadError:
             return None

@@ -1,6 +1,8 @@
 Copyright (C) 2022-2023 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
 
+saw_032023_3 - Node client properly plays ping-pong again.
+
 saw_032023_2 - Flush output while printing by default. Handle incomplete reads.
 
 saw_032023_1 - Beginning to replace gevent with asyncio (just node so far).

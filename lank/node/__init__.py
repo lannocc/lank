@@ -8,7 +8,6 @@ import asyncio
 from socket import getaddrinfo, SOCK_STREAM
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
-#from sys import stdout
 import random
 
 
@@ -22,26 +21,11 @@ NODES_WAIT = 3 * 60 # seconds
 NTP = 'pool.ntp.org'
 
 
-'''
-print_orig = print
-def print_flush(*args, **kwargs):
-    print_orig(*args, **kwargs)
-    stdout.flush()
-print = print_flush
-'''
-
-
 def get_nodes():
     nodes = getaddrinfo(NODES, 0, type=SOCK_STREAM)
     nodes = [ (node[4][0], DEFAULT_PORT) for node in nodes ]
     random.shuffle(nodes)
     return nodes
-
-def exception(loop, context):
-    func = context.get('future').get_coro().__name__
-    msg = context.get('exception', context['message'])
-    name = type(msg).__name__
-    print(f'!!EE!! ({func}) {name} !! {msg}')
 
 
 class Master:
@@ -69,22 +53,29 @@ class Master:
         self.label_interests_by_handler = { }
 
     def run(self):
-        asyncio.run(self.main())
+        def exception(loop, context):
+            func = context.get('future').get_coro().__name__
+            msg = context.get('exception', context['message'])
+            name = type(msg).__name__
+            self.print(f'!!EE!! ({func}) {name} !! {msg}')
+
+        async def main():
+            asyncio.get_running_loop().set_exception_handler(exception)
+            await self.main()
+
+        asyncio.run(main())
 
     async def main(self):
-        asyncio.get_running_loop().set_exception_handler(exception)
 
         for label in self.ldb.list_labels():
             self.labels_by_id[label['id']] = label['name']
 
-        '''
         self.print(f'   getting time from {NTP}...')
         ntp = NTPClient().request(NTP, version=3)
         self.offset = ntp.offset
         self.print(f'      our clock is {abs(self.offset)} seconds ', end='')
         if self.offset < 0: self.print('fast')
         else: self.print('slow')
-        '''
 
         self.print(f'S  listening on port {self.port}')
         await asyncio.start_server(self.serve, '0.0.0.0', self.port)
@@ -124,21 +115,15 @@ class Master:
                 except ValueError as e:
                     self.print(f'S- terminated {addr} [BAD MESSAGE: {e}]')
 
+                except asyncio.TimeoutError:
+                    self.print(f'S- terminated {addr} [GENERAL TIMEOUT]')
+
                 finally:
-                    self.remove_label_interests(handler)
+                    self._handler_cleanup_(handler)
                     self.num_established -= 1
 
             else:
                 self.print(f'S- terminated {addr} [BAD HELLO]')
-
-        except VersionMismatch as e:
-            self.print(f'S- terminated {addr} [PROTOCOL VERSION: {e}]')
-
-        except asyncio.IncompleteReadError:
-            self.print(f'S- terminated {addr} [BAD HELLO]')
-
-        except asyncio.TimeoutError:
-            self.print(f'S- terminated {addr} [HELLO TIMEOUT]')
 
         except BrokenPipeError:
             self.print(f'S- closed {addr} [BROKEN PIPE]')
@@ -148,6 +133,15 @@ class Master:
 
         except OSError:
             self.print(f'S- closed {addr} [GENERAL NETWORK ERROR]')
+
+        except asyncio.TimeoutError:
+            self.print(f'S- terminated {addr} [HELLO TIMEOUT]')
+
+        except asyncio.IncompleteReadError:
+            self.print(f'S- terminated {addr} [HELLO TIMEOUT]')
+
+        except VersionMismatch as e:
+            self.print(f'S- terminated {addr} [PROTOCOL VERSION: {e}]')
 
         except Exception as e:
             name = type(e).__name__
@@ -164,15 +158,15 @@ class Master:
 
     async def client(self, addr):
         try:
+            self.print(f'C+ connecting to {addr}')
             self.nodes_client[addr] = True
             host, port = addr
 
-            self.print(f'C+ connecting to {addr}')
             reader, writer = await asyncio.wait_for(
                     asyncio.open_connection(host, port), timeout=HELLO_TIMEOUT)
 
             try:
-                handler = Handler(addr, reader, writer, self.print)
+                handler = Handler(addr, reader, writer, printer=self.print)
                 await handler.hello()
 
                 try:
@@ -192,7 +186,7 @@ class Master:
                     self.print(f'C- terminated {addr} [GENERAL TIMEOUT]')
 
                 finally:
-                    self.remove_label_interests(handler)
+                    self._handler_cleanup_(handler)
                     self.num_established -= 1
 
             except BrokenPipeError:
@@ -221,6 +215,11 @@ class Master:
         except asyncio.TimeoutError:
             self.print(f'C- terminated {addr} [CONNECT TIMEOUT]')
 
+        except Exception as e:
+            name = type(e).__name__
+            self.print(f'C- terminated {addr} [ERROR: {name}] !! {e}')
+            raise e
+
         finally:
             if self.nodes_client[addr]:
                 del self.nodes_client[addr]
@@ -234,13 +233,6 @@ class Master:
 
     def now(self):
         return datetime.now(timezone.utc) + timedelta(seconds=self.offset)
-
-
-
-
-
-
-
 
     async def broadcast_nodes(self, msg, skip=None):
         self.print(f'B    (NODES) <- {msg}')
@@ -292,12 +284,7 @@ class Master:
         labels = self.label_interests_by_handler[handler]
         del labels[labels.index(label)]
 
-
-
-
-
-
-    def remove_label_interests(self, handler):
+    def _handler_cleanup_(self, handler):
         if handler not in self.label_interests_by_handler:
             return
 
