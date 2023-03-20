@@ -44,7 +44,7 @@ class Handler(Base):
         20: SignedNameMismatch,
         21: SignatureFailure,
         22: PeerOn,
-        23: PeerAlreadyConnected,
+        #23: PeerAlreadyConnected,
         24: ListLabels,
         25: LabelsList,
         26: LabelInterest,
@@ -55,7 +55,7 @@ class Handler(Base):
 
     def client(self, master):
         self.node_uuid = None
-        self.peer_label = None
+        #self.peer_label = None
 
         sync = master.ldb.get_last_signed_created()
         if sync:
@@ -140,7 +140,7 @@ class Handler(Base):
 
     def server(self, master):
         self.node_uuid = None
-        self.peer_label = None
+        #self.peer_label = None
 
         try:
             #while msg := self.s_recv():
@@ -203,9 +203,9 @@ class Handler(Base):
                 del master.nodes_by_uuid[self.node_uuid]
                 master.status()
 
-            if self.peer_label:
-                del master.peers_by_label[self.peer_label]
-                master.status()
+            #if self.peer_label:
+            #    del master.peers_by_label[self.peer_label]
+            #    master.status()
 
     def send(self, msg):
         id_bytes = self.get_id_bytes(msg)
@@ -218,8 +218,8 @@ class Handler(Base):
         if self.node_uuid:
             return NodeAlreadyConnected()
 
-        if self.peer_label:
-            return PeerAlreadyConnected()
+        #if self.peer_label:
+        #    return PeerAlreadyConnected()
 
         if msg.uuid == master.uuid:
             return NodeIsSelf()
@@ -548,10 +548,10 @@ class Handler(Base):
     def peer_on(self, master, msg):
         assert isinstance(msg, PeerOn)
 
-        if self.peer_label:
-            # FIXME: maybe allow this?
-            #       (e.g. peer switching identity or multiple-login)
-            return PeerAlreadyConnected()
+        #if self.peer_label:
+        #    # FIXME: maybe allow this?
+        #    #       (e.g. peer switching identity or multiple-login)
+        #    return PeerAlreadyConnected()
 
         if self.node_uuid:
             return NodeAlreadyConnected()
@@ -597,8 +597,8 @@ class Handler(Base):
 
             master.signed_recently[msg.uuid] = time
 
-        self.peer_label = msg.label
-        master.peers_by_label[self.peer_label] = self
+        #self.peer_label = msg.label
+        #master.peers_by_label[self.peer_label] = self
         master.status()
 
         reply = Signed(

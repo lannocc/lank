@@ -31,6 +31,8 @@ class SignatureFailure(Identified, Denial):
     pass
 
 
+'''
 class PeerAlreadyConnected(Denial):
     pass
+'''
 

@@ -1,6 +1,6 @@
 from ..node import get_nodes, HELLO_TIMEOUT, GENERAL_TIMEOUT, KEEPALIVE
 from ..node.protocol.v2 import *
-from ..crypto import get_handler as get_crypto
+#from ..crypto import get_handler as get_crypto
 
 from requests import get
 
@@ -130,6 +130,10 @@ class Client(Thread):
 
     def get_registration(self, label):
         self.input.put_nowait(GetRegistration(label))
+        return self.output.get()
+
+    def get_history(self, label):
+        self.input.put_nowait(GetHistory(label))
         return self.output.get()
 
     '''

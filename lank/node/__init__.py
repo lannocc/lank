@@ -65,6 +65,7 @@ class Master:
         self.stream_server = StreamServer(('0.0.0.0', self.port), self.server,
             spawn=self.pool)
 
+        self.num_connections = 0
         self.buffer = bytearray(HELLO_SIZE)
 
         self.labels_by_id = bidict({ })
@@ -73,7 +74,7 @@ class Master:
         self.reservations = { }
         self.registrations = { }
         self.signed_recently = { }
-        self.peers_by_label = { }
+        #self.peers_by_label = { }
         self.label_interests_by_label = { }
         self.label_interests_by_handler = { }
 
@@ -105,10 +106,12 @@ class Master:
 
     def status(self):
         nodes = len(self.nodes_by_uuid)
-        peers = len(self.peers_by_label)
+        #peers = len(self.peers_by_label)
+        other = self.num_connections - nodes
         time = self.now().isoformat()
         print(f'>>>[STATUS]>>> v{__version__} ** NODES={nodes}' \
-            + f' ** PEERS={peers} ** TIME={time} ** <<<[STATUS]<<<')
+            + f' ** OTHER={other} ** TIME={time} ** <<<[STATUS]<<<')
+            #+ f' ** PEERS={peers} ** TIME={time} ** <<<[STATUS]<<<')
 
     def broadcast_nodes(self, msg, skip=None):
         print(f'B    (NODES) <- {msg}')
@@ -187,6 +190,7 @@ class Master:
                 sock.settimeout(GENERAL_TIMEOUT)
 
                 try:
+                    self.num_connections += 1
                     handler.client(self)
                     print(f'C- finished {addr}')
 
@@ -203,6 +207,7 @@ class Master:
 
                 finally:
                     self.remove_label_interests(handler)
+                    self.num_connections -= 1
 
             except BrokenPipeError:
                 print(f'C- closed {addr} [BROKEN PIPE]')
@@ -242,6 +247,7 @@ class Master:
 
                         if handler:
                             try:
+                                self.num_connections += 1
                                 handler.server(self)
                                 print(f'S- finished {addr}')
 
@@ -254,6 +260,7 @@ class Master:
 
                             finally:
                                 self.remove_label_interests(handler)
+                                self.num_connections -= 1
 
                         else:
                             print(f'S- closed {addr} [CLIENT ABORT]')

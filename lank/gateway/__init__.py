@@ -63,6 +63,11 @@ class Master:
                 reg = self.node.get_registration(label)
                 await self.reply(websocket, reg, 'key_pair_pem')
 
+            elif etype == 'GetHistory':
+                label = event['label']
+                history = self.node.get_history(label)
+                await self.reply(websocket, history, 'items')
+
             else:
                 self.print(f' !!UNKNOWN!! {event["type"]}')
 

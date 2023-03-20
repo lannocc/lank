@@ -1,6 +1,9 @@
 Copyright (C) 2022-2023 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
 
+saw_031923_1 - Remove the idea of a peer being "already connected" to the node.
+Add "GetHistory" support to the gateway.
+
 saw_031823_2 - Fix registration.
 
 saw_031823_1 - Begin to implement gateway operation.
