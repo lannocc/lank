@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 
-VERSION = 2
+VERSION = 3
 HELLO = b'\x04\x02\x00HOLANK\x00\x02\x04'
 HELLO_SIZE = len(HELLO) # bytes
 HELLO_TIMEOUT = 3 # seconds

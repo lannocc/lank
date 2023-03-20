@@ -155,8 +155,12 @@ class Master:
             raise e
 
         finally:
-            writer.close()
-            await writer.wait_closed()
+            try:
+                writer.close()
+                await writer.wait_closed()
+
+            except ConnectionResetError:
+                pass
 
     async def client(self, addr):
         try:
@@ -202,6 +206,14 @@ class Master:
 
             except asyncio.TimeoutError:
                 self.print(f'C- terminated {addr} [HELLO TIMEOUT]')
+
+            finally:
+                try:
+                    writer.close()
+                    await writer.wait_closed()
+
+                except ConnectionResetError:
+                    pass
 
         except ConnectionRefusedError:
             self.print(f'C- closed {addr} [CONNECTION REFUSED]')
