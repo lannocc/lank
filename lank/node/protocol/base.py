@@ -16,7 +16,7 @@ class Message(ABC):
         return None
 
     @classmethod
-    def recv(cls, handler):
+    async def recv(cls, handler):
         return cls()
 
 
@@ -35,14 +35,14 @@ class Nonced(Message, ABC):
         return self.nonce.to_bytes(self.NONCE_SIZE, handler.BYTE_ORDER)
 
     @classmethod
-    def recv(cls, handler):
-        nonce = cls._nonce_(handler)
+    async def recv(cls, handler):
+        nonce = await cls._nonce_(handler)
         if nonce is None: return None
         return cls(nonce)
 
     @classmethod
-    def _nonce_(cls, handler):
-        nonce = handler.recv_bytes(cls.NONCE_SIZE)
+    async def _nonce_(cls, handler):
+        nonce = await handler.recv_bytes(cls.NONCE_SIZE)
         if nonce is None: return None
         return int.from_bytes(nonce, handler.BYTE_ORDER)
 
@@ -72,14 +72,14 @@ class Timestamped(Message, ABC):
         return ts.to_bytes(cls.TIMESTAMP_SIZE, handler.BYTE_ORDER)
 
     @classmethod
-    def recv(cls, handler):
-        timestamp = cls._timestamp_(handler)
+    async def recv(cls, handler):
+        timestamp = await cls._timestamp_(handler)
         if timestamp is None: return None
         return cls(cls._to_datetime_(timestamp))
 
     @classmethod
-    def _timestamp_(cls, handler):
-        timestamp = handler.recv_bytes(cls.TIMESTAMP_SIZE)
+    async def _timestamp_(cls, handler):
+        timestamp = await handler.recv_bytes(cls.TIMESTAMP_SIZE)
         if timestamp is None: return None
         return int.from_bytes(timestamp, handler.BYTE_ORDER)
 
@@ -110,14 +110,14 @@ class Identified(Message, ABC):
         return uuid.bytes
 
     @classmethod
-    def recv(cls, handler):
-        uuid = cls._uuid_(handler)
+    async def recv(cls, handler):
+        uuid = await cls._uuid_(handler)
         if uuid is None: return None
         return cls(uuid)
 
     @classmethod
-    def _uuid_(cls, handler):
-        uuid = handler.recv_bytes(cls.UUID_SIZE)
+    async def _uuid_(cls, handler):
+        uuid = await handler.recv_bytes(cls.UUID_SIZE)
         if uuid is None: return None
         return UUID(bytes=bytes(uuid))
 
@@ -140,18 +140,18 @@ class Labeled(Message, ABC):
         return size + label
 
     @classmethod
-    def recv(cls, handler):
-        label = cls._label_(handler)
+    async def recv(cls, handler):
+        label = await cls._label_(handler)
         if label is None: return None
         return cls(label)
 
     @classmethod
-    def _label_(cls, handler):
-        size = handler.recv_bytes(cls.LABEL_SIZE_SIZE)
+    async def _label_(cls, handler):
+        size = await handler.recv_bytes(cls.LABEL_SIZE_SIZE)
         if size is None: return None
         size = int.from_bytes(size, handler.BYTE_ORDER)
 
-        label = handler.recv_bytes(size)
+        label = await handler.recv_bytes(size)
         if label is None: return None
         label = str(label, handler.ENCODING)
         return label
@@ -180,25 +180,25 @@ class Autographed(Message, ABC):
         return ver + sig
 
     @classmethod
-    def recv(cls, handler):
-        ver = cls._version_(handler)
+    async def recv(cls, handler):
+        ver = await cls._version_(handler)
         if ver is None: return None
 
-        sig = cls._signature_(handler)
+        sig = await cls._signature_(handler)
         if sig is None: return None
 
         return cls(ver, sig)
 
     @classmethod
-    def _version_(cls, handler):
-        ver = handler.recv_bytes(cls.VERSION_SIZE)
+    async def _version_(cls, handler):
+        ver = await handler.recv_bytes(cls.VERSION_SIZE)
         if ver is None: return None
         ver = int.from_bytes(ver, handler.BYTE_ORDER)
         return ver
 
     @classmethod
-    def _signature_(cls, handler):
-        sig = handler.recv_bytes(cls.SIG_SIZE)
+    async def _signature_(cls, handler):
+        sig = await handler.recv_bytes(cls.SIG_SIZE)
         if sig is None: return None
         sig = bytes(sig)
         return sig

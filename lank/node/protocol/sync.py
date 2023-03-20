@@ -26,18 +26,18 @@ class NodeOn(Nonced, Timestamped, Identified):
             + self._timestamp_bytes_(handler, self.synced)
 
     @classmethod
-    def recv(cls, handler):
-        nonce = cls._nonce_(handler)
+    async def recv(cls, handler):
+        nonce = await cls._nonce_(handler)
         if nonce is None: return None
 
-        timestamp = cls._timestamp_(handler)
+        timestamp = await cls._timestamp_(handler)
         if timestamp is None: return None
         timestamp = cls._to_datetime_(timestamp)
 
-        uuid = cls._uuid_(handler)
+        uuid = await cls._uuid_(handler)
         if uuid is None: return None
 
-        synced = cls._timestamp_(handler)
+        synced = await cls._timestamp_(handler)
         if synced is None: return None
         synced = Timestamped._to_datetime_(synced)
 
@@ -100,41 +100,41 @@ class Signed(Autographed, Identified, Labeled, Timestamped):
             + addr_size + addr + node_uuid + created
 
     @classmethod
-    def recv(cls, handler):
-        ver = cls._version_(handler)
+    async def recv(cls, handler):
+        ver = await cls._version_(handler)
         if ver is None: return None
 
-        sig = cls._signature_(handler)
+        sig = await cls._signature_(handler)
         if sig is None: return None
 
-        uuid = cls._uuid_(handler)
+        uuid = await cls._uuid_(handler)
         if uuid is None: return None
 
-        label = cls._label_(handler)
+        label = await cls._label_(handler)
         if label is None: return None
 
-        name = handler.recv_bytes(cls.NAME_SIZE)
+        name = await handler.recv_bytes(cls.NAME_SIZE)
         if name is None: return None
         name = int.from_bytes(name, handler.BYTE_ORDER)
 
-        size = handler.recv_bytes(cls.KEY_SIZE_SIZE)
+        size = await handler.recv_bytes(cls.KEY_SIZE_SIZE)
         if size is None: return None
         size = int.from_bytes(size, handler.BYTE_ORDER)
-        key = handler.recv_bytes(size)
+        key = await handler.recv_bytes(size)
         if key is None: return None
         key = str(key, handler.ENCODING)
 
-        size = handler.recv_bytes(cls.ADDR_SIZE_SIZE)
+        size = await handler.recv_bytes(cls.ADDR_SIZE_SIZE)
         if size is None: return None
         size = int.from_bytes(size, handler.BYTE_ORDER)
-        addr = handler.recv_bytes(size)
+        addr = await handler.recv_bytes(size)
         if addr is None: return None
         addr = str(addr, handler.ENCODING)
 
-        node_uuid = cls._uuid_(handler)
+        node_uuid = await cls._uuid_(handler)
         if node_uuid is None: return None
 
-        created = cls._timestamp_(handler)
+        created = await cls._timestamp_(handler)
         if created is None: return None
         created = cls._to_datetime_(created)
 
@@ -163,11 +163,11 @@ class SignedLabelMismatch(Identified, Labeled):
         return uuid + label
 
     @classmethod
-    def recv(cls, handler):
-        uuid = cls._uuid_(handler)
+    async def recv(cls, handler):
+        uuid = await cls._uuid_(handler)
         if uuid is None: return None
 
-        label = cls._label_(handler)
+        label = await cls._label_(handler)
         if label is None: return None
 
         return cls(uuid, label)
@@ -195,11 +195,11 @@ class SignedNameMismatch(Identified):
         return uuid + name
 
     @classmethod
-    def recv(cls, handler):
-        uuid = cls._uuid_(handler)
+    async def recv(cls, handler):
+        uuid = await cls._uuid_(handler)
         if uuid is None: return None
 
-        name = handler.recv_bytes(cls.NAME_SIZE)
+        name = await handler.recv_bytes(cls.NAME_SIZE)
         if name is None: return None
         name = int.from_bytes(name, handler.BYTE_ORDER)
 

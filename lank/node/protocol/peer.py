@@ -53,34 +53,34 @@ class PeerOn(Autographed, Identified, Labeled):
             + alias_size + alias
 
     @classmethod
-    def recv(cls, handler):
-        ver = cls._version_(handler)
+    async def recv(cls, handler):
+        ver = await cls._version_(handler)
         if ver is None: return None
 
-        sig = cls._signature_(handler)
+        sig = await cls._signature_(handler)
         if sig is None: return None
 
-        uuid = cls._uuid_(handler)
+        uuid = await cls._uuid_(handler)
         if uuid is None: return None
 
-        label = cls._label_(handler)
+        label = await cls._label_(handler)
         if label is None: return None
 
-        size = handler.recv_bytes(cls.HOST_SIZE_SIZE)
+        size = await handler.recv_bytes(cls.HOST_SIZE_SIZE)
         if size is None: return None
         size = int.from_bytes(size, handler.BYTE_ORDER)
-        host = handler.recv_bytes(size)
+        host = await handler.recv_bytes(size)
         if host is None: return None
         host = str(host, handler.ENCODING)
 
-        port = handler.recv_bytes(cls.PORT_SIZE)
+        port = await handler.recv_bytes(cls.PORT_SIZE)
         if port is None: return None
         port = int.from_bytes(port, handler.BYTE_ORDER)
 
-        size = handler.recv_bytes(cls.ALIAS_SIZE_SIZE)
+        size = await handler.recv_bytes(cls.ALIAS_SIZE_SIZE)
         if size is None: return None
         size = int.from_bytes(size, handler.BYTE_ORDER)
-        alias = handler.recv_bytes(size)
+        alias = await handler.recv_bytes(size)
         if alias is None: return None
         alias = str(alias, handler.ENCODING) if alias else None
 
@@ -129,17 +129,17 @@ class LabelsList(Message):
         return count + labels
 
     @classmethod
-    def recv(cls, handler):
-        count = handler.recv_bytes(cls.COUNT_SIZE)
+    async def recv(cls, handler):
+        count = await handler.recv_bytes(cls.COUNT_SIZE)
         if count is None: return None
         count = int.from_bytes(count, handler.BYTE_ORDER)
 
         labels = [ ]
         for i in range(count):
-            size = handler.recv_bytes(cls.LABEL_SIZE_SIZE)
+            size = await handler.recv_bytes(cls.LABEL_SIZE_SIZE)
             if size is None: return None
             size = int.from_bytes(size, handler.BYTE_ORDER)
-            label = handler.recv_bytes(size)
+            label = await handler.recv_bytes(size)
             if label is None: return None
             label = str(label, handler.ENCODING)
             labels.append(label)
@@ -185,27 +185,27 @@ class GetHistory(Labeled):
         return label + start + count
 
     @classmethod
-    def recv(cls, handler):
-        label = cls._label_(handler)
+    async def recv(cls, handler):
+        label = await cls._label_(handler)
         if label is None: return None
 
-        start = cls._start_(handler)
+        start = await cls._start_(handler)
         if start is None: return None
 
-        count = cls._count_(handler)
+        count = await cls._count_(handler)
         if count is None: return None
 
         return cls(label, start, count)
 
     @classmethod
-    def _start_(cls, handler):
-        start = handler.recv_bytes(cls.START_SIZE)
+    async def _start_(cls, handler):
+        start = await handler.recv_bytes(cls.START_SIZE)
         if start is None: return None
         return int.from_bytes(start, handler.BYTE_ORDER)
 
     @classmethod
-    def _count_(cls, handler):
-        count = handler.recv_bytes(cls.COUNT_SIZE)
+    async def _count_(cls, handler):
+        count = await handler.recv_bytes(cls.COUNT_SIZE)
         if count is None: return None
         return int.from_bytes(count, handler.BYTE_ORDER)
 
@@ -227,19 +227,19 @@ class History(GetHistory):
         return label_start_count + items
 
     @classmethod
-    def recv(cls, handler):
-        label = cls._label_(handler)
+    async def recv(cls, handler):
+        label = await cls._label_(handler)
         if label is None: return None
 
-        start = cls._start_(handler)
+        start = await cls._start_(handler)
         if start is None: return None
 
-        count = cls._count_(handler)
+        count = await cls._count_(handler)
         if count is None: return None
 
         items = [ ]
         for i in range(count):
-            item = Signed.recv(handler)
+            item = await Signed.recv(handler)
             if item is None: return None
             items.append(item)
 

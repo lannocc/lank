@@ -19,11 +19,11 @@ class Reservation(Labeled, Identified):
             + Identified.to_bytes(self, handler)
 
     @classmethod
-    def recv(cls, handler):
-        label = cls._label_(handler)
+    async def recv(cls, handler):
+        label = await cls._label_(handler)
         if label is None: return None
 
-        uuid = cls._uuid_(handler)
+        uuid = await cls._uuid_(handler)
         if uuid is None: return None
 
         return cls(label, uuid)
@@ -45,11 +45,11 @@ class ReservationCancel(Labeled):
             + (b'\xFF' if self.exists else b'\x00')
 
     @classmethod
-    def recv(cls, handler):
-        label = cls._label_(handler)
+    async def recv(cls, handler):
+        label = await cls._label_(handler)
         if label is None: return None
 
-        exists = handler.recv_bytes(1)
+        exists = await handler.recv_bytes(1)
         if exists is None: return None
 
         return cls(label, exists==b'\xFF')
@@ -102,32 +102,32 @@ class Registration(Autographed, Identified, Labeled):
             + key_pair_size + key_pair
 
     @classmethod
-    def recv(cls, handler):
-        ver = cls._version_(handler)
+    async def recv(cls, handler):
+        ver = await cls._version_(handler)
         if ver is None: return None
 
-        sig = cls._signature_(handler)
+        sig = await cls._signature_(handler)
         if sig is None: return None
 
-        uuid = cls._uuid_(handler)
+        uuid = await cls._uuid_(handler)
         if uuid is None: return None
 
-        label = cls._label_(handler)
+        label = await cls._label_(handler)
         if label is None: return None
 
-        size = handler.recv_bytes(cls.TIME_NONCE_SIZE_SIZE)
+        size = await handler.recv_bytes(cls.TIME_NONCE_SIZE_SIZE)
         if size is None: return None
         size = int.from_bytes(size, handler.BYTE_ORDER)
 
-        time_nonce = handler.recv_bytes(size)
+        time_nonce = await handler.recv_bytes(size)
         if time_nonce is None: return None
         time_nonce = str(time_nonce, handler.ENCODING)
 
-        size = handler.recv_bytes(cls.KEY_PAIR_SIZE_SIZE)
+        size = await handler.recv_bytes(cls.KEY_PAIR_SIZE_SIZE)
         if size is None: return None
         size = int.from_bytes(size, handler.BYTE_ORDER)
 
-        key_pair = handler.recv_bytes(size)
+        key_pair = await handler.recv_bytes(size)
         if key_pair is None: return None
         key_pair = bytes(key_pair)
 
