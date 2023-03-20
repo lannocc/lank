@@ -21,7 +21,6 @@ def run():
             'appdirs',
             'bidict',
             'cryptography >= 37.0.4',
-            'gevent',
             'ntplib',
             'password-strength',
             'requests',
@@ -31,6 +30,7 @@ def run():
             'console_scripts': [
                 'lank=lank.__main__:run',
                 'lank-node=lank.node.__main__:run',
+                'lank-gateway=lank.gateway.__main__:run',
                 #'lank-peer=lank.peer.__main__:run',
             ],
         },

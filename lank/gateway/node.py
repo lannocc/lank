@@ -27,7 +27,7 @@ class Client():
         #self.input = Queue()
         #self.output = Queue()
 
-        self.ping = None
+        #self.ping = None
         #self.sign_on = False
         #self.labels_callback = None
         #self.history_callback = None
