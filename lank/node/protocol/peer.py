@@ -226,21 +226,42 @@ class GetHistory(Labeled):
         return int.from_bytes(name, handler.BYTE_ORDER)
 
 
-class History(GetHistory):
+class History(Labeled):
+    START_SIZE = 1 # bytes
+    COUNT_SIZE = 1 # bytes
+
     def __init__(self, label, start, items):
-        GetHistory.__init__(self, label, start, len(items))
+        Labeled.__init__(self, label)
+        self.start = start
+        self.count = len(items)
         self.items = items
 
+    def _str_(self):
+        return ', '.join([
+            Labeled._str_(self),
+            f'start={self.start}',
+            f'count={self.count}',
+            #f'items={self.items}',
+        ])
+
     def to_bytes(self, handler):
-        label_start_count = GetHistory.to_bytes(self, handler)
+        label = Labeled.to_bytes(self, handler)
+
+        start = self.start
+        assert start >= 0 and start < 256**self.START_SIZE
+        start = start.to_bytes(self.START_SIZE, handler.BYTE_ORDER)
+
         assert self.count == len(self.items)
+        count = self.count
+        assert count >= 0 and count < 256**self.COUNT_SIZE
+        count = count.to_bytes(self.COUNT_SIZE, handler.BYTE_ORDER)
 
         items = b''
         for signed in self.items:
             assert isinstance(signed, Signed)
             items += signed.to_bytes(handler)
 
-        return label_start_count + items
+        return label + start + count + items
 
     @classmethod
     async def recv(cls, handler):
@@ -260,4 +281,16 @@ class History(GetHistory):
             items.append(item)
 
         return cls(label, start, items)
+
+    @classmethod
+    async def _start_(cls, handler):
+        start = await handler.recv_bytes(cls.START_SIZE)
+        if start is None: return None
+        return int.from_bytes(start, handler.BYTE_ORDER)
+
+    @classmethod
+    async def _count_(cls, handler):
+        count = await handler.recv_bytes(cls.COUNT_SIZE)
+        if count is None: return None
+        return int.from_bytes(count, handler.BYTE_ORDER)
 
