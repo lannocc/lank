@@ -174,7 +174,7 @@ class Interactive:
                                       signature)
         self.print(' [done]')
 
-        self.print('Transmitting...', end='')
+        self.print('Transmitting...')
         if await self.client.register_label(uuid, label, priv_key_pem,
                 pub_key_pem, signature, self.crypto.VERSION, time_nonce):
             self.print(' [SUCCESS]')

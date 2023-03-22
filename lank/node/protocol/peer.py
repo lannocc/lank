@@ -158,17 +158,20 @@ class LabelIgnore(Labeled):
 class GetHistory(Labeled):
     START_SIZE = 1 # bytes
     COUNT_SIZE = 1 # bytes
+    NAME_SIZE = 1 # bytes
 
-    def __init__(self, label, start=0, count=5):
+    def __init__(self, label, start=0, count=5, name=0):
         Labeled.__init__(self, label)
         self.start = start
         self.count = count
+        self.name = name
 
     def _str_(self):
         return ', '.join([
             Labeled._str_(self),
             f'start={self.start}',
             f'count={self.count}',
+            f'name={self.name}',
         ])
 
     def to_bytes(self, handler):
@@ -182,7 +185,11 @@ class GetHistory(Labeled):
         assert count > 0 and count < 256**self.COUNT_SIZE
         count = count.to_bytes(self.COUNT_SIZE, handler.BYTE_ORDER)
 
-        return label + start + count
+        name = self.name
+        assert name >= 0 and name < 256**self.NAME_SIZE
+        name = name.to_bytes(self.NAME_SIZE, handler.BYTE_ORDER)
+
+        return label + start + count + name
 
     @classmethod
     async def recv(cls, handler):
@@ -195,7 +202,10 @@ class GetHistory(Labeled):
         count = await cls._count_(handler)
         if count is None: return None
 
-        return cls(label, start, count)
+        name = await cls._name_(handler)
+        if name is None: return None
+
+        return cls(label, start, count, name)
 
     @classmethod
     async def _start_(cls, handler):
@@ -208,6 +218,12 @@ class GetHistory(Labeled):
         count = await handler.recv_bytes(cls.COUNT_SIZE)
         if count is None: return None
         return int.from_bytes(count, handler.BYTE_ORDER)
+
+    @classmethod
+    async def _name_(cls, handler):
+        name = await handler.recv_bytes(cls.NAME_SIZE)
+        if name is None: return None
+        return int.from_bytes(name, handler.BYTE_ORDER)
 
 
 class History(GetHistory):

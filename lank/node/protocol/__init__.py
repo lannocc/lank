@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 
-VERSION = 3
+VERSION = 4
 HELLO = b'\x04\x02\x00HOLANK\x00\x02\x04'
 HELLO_SIZE = len(HELLO) # bytes
 HELLO_TIMEOUT = 3 # seconds
@@ -724,8 +724,13 @@ class Handler:
         except KeyError:
             return LabelNotFound(msg.label)
 
-        signed_list = master.ldb.find_signed_by_label(
-            label_id, msg.start + msg.count)
+        if msg.name:
+            signed_list = master.ldb.find_signed_by_label_name(
+                label_id, name, limit=msg.start+msg.count)
+
+        else:
+            signed_list = master.ldb.find_signed_by_label(
+                label_id, limit=msg.start+msg.count)
 
         items = [ ]
         idx = 0

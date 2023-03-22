@@ -1,6 +1,8 @@
 Copyright (C) 2022-2023 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
 
+saw_032123_1 - Upate GetHistory message to allow for filtering by name.
+
 saw_032023_5 - Registration upgraded. Note that peer stuff is still broken.
 
 saw_032023_4 - Gateway now converted from threading to asyncio.

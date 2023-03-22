@@ -2,6 +2,8 @@ from abc import ABC
 import random
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
+from json import JSONEncoder
+from base64 import b64encode
 
 
 class Message(ABC):
@@ -18,6 +20,21 @@ class Message(ABC):
     @classmethod
     async def recv(cls, handler):
         return cls()
+
+
+class MessageEncoder(JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, Message):
+                return { type(obj).__name__: vars(obj) }
+
+            elif isinstance(obj, bytes):
+                return b64encode(obj).decode()
+
+            elif isinstance(obj, UUID):
+                return str(obj)
+
+            else:
+                return json.JSONEncoder.default(self, obj)
 
 
 class Nonced(Message, ABC):
