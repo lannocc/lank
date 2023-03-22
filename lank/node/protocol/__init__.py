@@ -726,7 +726,7 @@ class Handler:
 
         if msg.name:
             signed_list = master.ldb.find_signed_by_label_name(
-                label_id, name, limit=msg.start+msg.count)
+                label_id, msg.name, limit=msg.start+msg.count)
 
         else:
             signed_list = master.ldb.find_signed_by_label(
