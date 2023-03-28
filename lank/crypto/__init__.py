@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-VERSION = 1
+VERSION = 2
 
 cache = { }
 

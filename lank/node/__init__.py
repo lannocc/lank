@@ -66,7 +66,6 @@ class Master:
         asyncio.run(main())
 
     async def main(self):
-
         for label in self.ldb.list_labels():
             self.labels_by_id[label['id']] = label['name']
 

@@ -18,7 +18,7 @@ HELLO_SIZE = len(HELLO) # bytes
 HELLO_TIMEOUT = 3 # seconds
 MAX_TIME_SKEW = 9 # seconds
 KEEPALIVE = 99 # seconds
-GENERAL_TIMEOUT = KEEPALIVE * 2 # seconds
+GENERAL_TIMEOUT = 2*KEEPALIVE # seconds
 
 
 class VersionMismatch(BaseException):

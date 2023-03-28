@@ -1,3 +1,5 @@
+# FIXME
+'''
 from .protocol import get_handler, HELLO
 
 from gevent.pool import Pool
@@ -79,4 +81,5 @@ class Master:
 
         except timeout:
             print(f' - terminated {addr} [HELLO TIMEOUT]')
+'''
 

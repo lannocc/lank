@@ -1,7 +1,6 @@
 from abc import ABC
 import random
 from datetime import datetime, timezone
-from uuid import UUID
 from json import JSONEncoder
 from base64 import b64encode
 
@@ -23,26 +22,25 @@ class Message(ABC):
 
 
 class MessageEncoder(JSONEncoder):
-    def __init__(self, crypto=None, sort_keys=False):
-        super().__init__(sort_keys=sort_keys)
-        self.crypto = crypto
+        def __init__(self, sort_keys=False):
+            super().__init__(sort_keys=sort_keys)
 
-    def default(self, obj):
-        if isinstance(obj, Message):
-            data = vars(obj)
-            if hasattr(obj, 'to_sign'):
-                data = data.copy()
-                data['to_sign'] = obj.to_sign(self.crypto)
-            return { type(obj).__name__: data }
+        def default(self, obj):
+            if isinstance(obj, Message):
+                data = vars(obj)
+                #if hasattr(obj, 'to_sign'):
+                #    data = data.copy()
+                #    data['to_sign'] = obj.to_sign(self.crypto)
+                return { type(obj).__name__: data }
 
-        elif isinstance(obj, bytes):
-            return b64encode(obj).decode()
+            elif isinstance(obj, bytes):
+                return b64encode(obj).decode()
 
-        elif isinstance(obj, UUID):
-            return str(obj)
+            elif isinstance(obj, UUID):
+                return str(obj)
 
-        else:
-            return json.JSONEncoder.default(self, obj)
+            else:
+                return json.JSONEncoder.default(self, obj)
 
 
 class Nonced(Message, ABC):
@@ -84,10 +82,10 @@ class Timestamped(Message, ABC):
         time = self._to_datetime_(self.timestamp).isoformat()
         return f'timestamp={time}'
 
-    def check_time_skew(self, now, max_skew):
-        now = self._from_datetime_(now)
-        skew = abs(now / self.TS_PRECISION - self.timestamp / self.TS_PRECISION)
-        return skew <= max_skew
+    #def check_time_skew(self, now, max_skew):
+    #    now = self._from_datetime_(now)
+    #    skew = abs(now / self.TS_PRECISION - self.timestamp / self.TS_PRECISION)
+    #    return skew <= max_skew
 
     def to_bytes(self, handler):
         return self._timestamp_bytes_(handler, self.timestamp)
@@ -110,41 +108,12 @@ class Timestamped(Message, ABC):
 
     @classmethod
     def _from_datetime_(cls, dt):
+        print(f'XXXXX {dt}')
         return int(dt.timestamp() * cls.TS_PRECISION)
 
     @classmethod
     def _to_datetime_(cls, ts):
         return datetime.fromtimestamp(ts / cls.TS_PRECISION, timezone.utc)
-
-
-class Identified(Message, ABC):
-    UUID_SIZE = 16 # bytes
-
-    def __init__(self, uuid):
-        assert isinstance(uuid, UUID)
-        self.uuid = uuid
-
-    def _str_(self):
-        return f'uuid={self.uuid}'
-
-    def to_bytes(self, handler):
-        return self._uuid_bytes_(handler, self.uuid)
-
-    @classmethod
-    def _uuid_bytes_(cls, handler, uuid):
-        return uuid.bytes
-
-    @classmethod
-    async def recv(cls, handler):
-        uuid = await cls._uuid_(handler)
-        if uuid is None: return None
-        return cls(uuid)
-
-    @classmethod
-    async def _uuid_(cls, handler):
-        uuid = await handler.recv_bytes(cls.UUID_SIZE)
-        if uuid is None: return None
-        return UUID(bytes=bytes(uuid))
 
 
 class Labeled(Message, ABC):

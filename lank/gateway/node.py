@@ -1,5 +1,6 @@
 from ..node import get_nodes
 from ..node.protocol import *
+from .. import name as names
 
 from requests import get
 
@@ -46,6 +47,11 @@ class Client():
         #    return 'no connection (sock)'
 
         return f'{self.node.reader._transport.get_extra_info("peername")}'
+
+    def get_public_ip(self):
+        ip = get('http://api.ipify.org').content.decode('utf-8')
+        self.print(f'   / our public IP address: {ip}')
+        return ip
 
     def run(self):
         def exception(loop, context):
@@ -144,53 +150,6 @@ class Client():
 
         if not self.node: return
 
-        '''
-        self.input.put_nowait(GetRegistration(self.label))
-        msg = self.output.get(timeout=GENERAL_TIMEOUT)
-        if not msg: return
-        if not isinstance(msg, Registration):
-            return self.error(f'failed to get label info: {msg}')
-
-        try:
-            crypto = get_crypto(msg.version)
-            priv_key = crypto.load_private_key(msg.key_pair_pem, self.pwd)
-
-            self.app.server.crypto = crypto
-            self.app.server.priv_key = priv_key
-
-        except TypeError as e:
-            return self.error(f'failed to unlock private key: {e}')
-        except ValueError as e:
-            return self.error(f'failed to unlock private key: {e}')
-
-        msg = PeerOn(crypto.VERSION, self.label, self.host, self.port,
-                     self.alias if self.alias else None)
-        msg.signature = crypto.sign(priv_key, msg.to_sign(crypto))
-
-        self.sign_on = True
-        self.input.put_nowait(msg)
-        msg = self.output.get(timeout=GENERAL_TIMEOUT)
-        if not msg: return
-        if not isinstance(msg, Signed):
-            return self.error(f'failed to sign on: {msg}')
-        self.sign_on = False
-
-        config.save_connect_label(self.label)
-        config.save_connect_alias(self.alias)
-
-        self.input.put_nowait(ListLabels())
-        msg = self.output.get(timeout=GENERAL_TIMEOUT)
-        if not msg: return
-        if not isinstance(msg, LabelsList):
-            return self.error(f'failed to get labels list: {msg}')
-
-        for label in msg.labels:
-            if label in self.app.interests:
-                self.input.put(LabelInterest(label))
-
-        self.on_connect(msg.labels)
-        '''
-
     async def send(self, msg):
         if not self.node: return
         self.print(f'N    {self.node.addr} <- {msg}')
@@ -210,124 +169,13 @@ class Client():
         await self.send(GetRegistration(label))
         return await self.recv()
 
-    async def get_history(self, label):
-        await self.send(GetHistory(label))
+    async def get_sign_ons(self, label):
+        await self.send(GetHistory(label, name=names.PEER))
         return await self.recv()
 
-    '''
-    def interest(self, label, notify=True):
-        self.input.put_nowait(
-            LabelInterest(label) if notify else LabelIgnore(label))
-
-    def get_labels(self, callback):
-        if self.labels_callback:
-            return self.error(f'never received last labels request')
-
-        self.labels_callback = callback
-        self.input.put_nowait(ListLabels())
-
-    def get_registration(self, label, callback):
-        if self.register_callback:
-            return self.error(f'never received last registration request')
-
-        self.register_callback = callback
-        self.input.put_nowait(GetRegistration(label))
-
-    def get_history(self, label, callback):
-        if self.history_callback:
-            return self.error(f'never received last history request')
-
-        self.history_callback = callback
-        self.register_callback = self._get_history_
-
-        self.input.put_nowait(GetRegistration(label))
-
-    def _get_history_(self, registration):
-        callback = self.history_callback
-        def history_callback(history):
-            callback(registration, history)
-        self.history_callback = history_callback
-        self.input.put_nowait(GetHistory(registration.label))
-
-    def stop(self):
-        if not self.node: return
-        self.print('stopping')
-        node = self.node
-        self.node = None
-
-        node.sock.shutdown(socket.SHUT_RDWR)
-        node.sock.close()
-        self.output.put_nowait(None)
-        self.input.put_nowait(None)
-
-    def join(self):
-        self.receiver_thread.join()
-        self.sender_thread.join()
-        super().join()
-
-    def sender(self):
-        try:
-            while self.node:
-                try:
-                    #while msg := self.input.get(timeout=KEEPALIVE):
-                    msg = self.input.get(timeout=KEEPALIVE)
-                    if msg:
-                        if not self.node: break
-                        self.send(msg)
-
-                except Empty:
-                    if self.ping:
-                        return self.error('ping sent but no pong received')
-
-                    if self.node:
-                        self.ping = Ping()
-                        self.send(self.ping)
-
-        finally:
-            self.stop()
-
-    def receiver(self):
-        try:
-            #while msg := self.recv():
-            msg = self.recv()
-            while msg:
-                if isinstance(msg, Pong):
-                    if not self.ping:
-                        return self.error(f'received pong without ping: {msg}')
-
-                    if msg.nonce != self.ping.nonce:
-                        return self.error(f'ping-pong nonce mismatch')
-
-                    self.ping = None
-
-                elif isinstance(msg, Signed):
-                    self.app.notify(msg)
-
-                    if self.sign_on:
-                        self.output.put(msg)
-
-                else:
-                    self.output.put(msg)
-
-                msg = self.recv()
-
-            self.error('lost connection')
-
-        except OSError as e:
-            self.error(e)
-
-        finally:
-            self.stop()
-
-    def error(self, e):
-        if not self.node: return
-        self.print(f'** ERROR ** {e}')
-        #self.on_error(e)
-        self.stop()
-    '''
-
-    def get_public_ip(self):
-        ip = get('http://api.ipify.org').content.decode('utf-8')
-        self.print(f' - our public IP address: {ip}')
-        return ip
+    async def signed(self, msg):
+        assert isinstance(msg, Autographed)
+        assert msg.signature
+        await self.send(msg)
+        return await self.recv()
 

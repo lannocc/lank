@@ -1,7 +1,9 @@
 Copyright (C) 2022-2023 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
 
-saw_033123_2 - Fixes for the last commit.
+saw_032823_1 - Lots of work on gateway/peer. Begin some crypto upgrades.
+
+saw_032123_2 - Fixes for the last commit.
 
 saw_032123_1 - Upate GetHistory message to allow for filtering by name.
 
