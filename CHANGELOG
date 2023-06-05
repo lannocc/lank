@@ -1,6 +1,8 @@
 Copyright (C) 2022-2023 LANNOCC (Shawn A. Wilson [lannocc@yahoo.com])
 @%@~LICENSE:MIT~@%@
 
+saw_060423_1 - Fix registration that was broken in the last release.
+
 saw_032823_1 - Lots of work on gateway/peer. Begin some crypto upgrades.
 
 saw_032123_2 - Fixes for the last commit.

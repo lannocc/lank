@@ -360,7 +360,7 @@ class Handler:
             reply = ReservationCancel(msg.label, True)
 
         else:
-            reservation = (msg.uuid, self.sock, master.now())
+            reservation = (msg.uuid, self.addr, master.now())
             master.reservations[msg.label] = reservation
             await master.broadcast_nodes(msg, skip=self)
             if not self.node_uuid: reply = msg
@@ -385,13 +385,14 @@ class Handler:
 
         reservation = master.reservations[msg.label]
         res_uuid = reservation[0]
-        res_sock = reservation[1]
+        res_addr = reservation[1]
 
-        #FIXME sock
-        #if res_sock != self.sock: # imposter
-        #    return ReservationRequired(msg.label)
+        #FIXME enable imposter checks?
 
         #if res_uuid != msg.uuid: # imposter
+        #    return ReservationRequired(msg.label)
+
+        #if res_addr != self.addr: # imposter
         #    return ReservationRequired(msg.label)
 
         crypto = get_crypto(msg.version)
